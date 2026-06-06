@@ -3,6 +3,7 @@ import type { AuthProfile, ProfileSetupData } from '../types/auth'
 import type { ProfileRow } from '../types/database'
 import { isSupportedCurrency } from './currency'
 import { translate } from './i18n'
+import { isProfileRowComplete, parseOnboardingIntent } from './onboarding'
 import {
   DEFAULT_PROFILE_ROLE,
   isValidStoredProfileRole,
@@ -11,14 +12,6 @@ import {
 
 export function getUserMetadata(user: User) {
   return (user.user_metadata ?? {}) as Record<string, unknown>
-}
-
-export function isProfileRowComplete(profile: ProfileRow | null | undefined): boolean {
-  return Boolean(
-    profile?.full_name?.trim() &&
-      profile.location?.trim() &&
-      isValidStoredProfileRole(profile.role),
-  )
 }
 
 export function isProfileComplete(
@@ -33,8 +26,7 @@ export function isProfileComplete(
   return Boolean(
     metadata.profile_complete &&
       metadata.full_name &&
-      isValidStoredProfileRole(typeof metadataRole === 'string' ? metadataRole : null) &&
-      (metadata.location || metadata.city),
+      isValidStoredProfileRole(typeof metadataRole === 'string' ? metadataRole : null),
   )
 }
 
@@ -51,6 +43,15 @@ export function mapUserToProfile(user: User, profileRow?: ProfileRow | null): Au
     location:
       profileRow?.location?.trim() ||
       String(metadataLocation ?? ''),
+    neighborhood: profileRow?.neighborhood?.trim() || undefined,
+    latitude: profileRow?.latitude ?? null,
+    longitude: profileRow?.longitude ?? null,
+    serviceCategories: (profileRow?.service_categories ?? []).filter(
+      (value): value is import('../types').TaskCategory => typeof value === 'string',
+    ),
+    startingPrices: (profileRow?.starting_prices as import('../types/auth').StartingPrices) ?? {},
+    availabilityEnabled: profileRow?.availability_enabled !== false,
+    onboardingIntent: parseOnboardingIntent(metadata.onboarding_intent),
     currency: isSupportedCurrency(profileRow?.currency)
       ? profileRow.currency
       : undefined,

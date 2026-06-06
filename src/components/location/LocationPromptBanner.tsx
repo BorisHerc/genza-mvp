@@ -1,4 +1,4 @@
-import { MapPin, X } from 'lucide-react'
+import { AlertCircle, MapPin, X } from 'lucide-react'
 import { useGeolocation } from '../../context/GeolocationContext'
 import { useTranslation } from '../../context/LocaleContext'
 import { Button } from '../ui/Button'
@@ -10,6 +10,30 @@ interface LocationPromptBannerProps {
 export function LocationPromptBanner({ className }: LocationPromptBannerProps) {
   const { t } = useTranslation()
   const { showPrompt, status, requestLocation, dismissPrompt } = useGeolocation()
+
+  if (status === 'denied') {
+    return (
+      <div
+        className={`mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 ${className ?? ''}`}
+      >
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">{t('geolocation.deniedTitle')}</p>
+            <p className="mt-1 text-xs leading-relaxed">{t('geolocation.deniedHint')}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'unsupported') {
+    return (
+      <div className={`mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 ${className ?? ''}`}>
+        <p>{t('geolocation.unsupported')}</p>
+      </div>
+    )
+  }
 
   if (!showPrompt) return null
 

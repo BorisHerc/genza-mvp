@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher'
-import { ServiceCategorySelect } from '../components/profile/ServiceCategorySelect'
+import { LocationPromptBanner } from '../components/location/LocationPromptBanner'
+import { ServiceOfferingFields } from '../components/profile/ServiceOfferingFields'
 import { ProfileAvatarPicker } from '../components/auth/ProfileAvatarPicker'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -10,6 +11,7 @@ import { Input } from '../components/ui/Input'
 import { PageLoader } from '../components/ui/PageLoader'
 import { Textarea } from '../components/ui/Textarea'
 import { useAuth } from '../context/AuthContext'
+import { useGeolocation } from '../context/GeolocationContext'
 import { useCurrency } from '../context/CurrencyContext'
 import { useToast } from '../context/ToastContext'
 import { uploadAvatar } from '../lib/avatar-upload'
@@ -23,21 +25,26 @@ import {
 } from '../lib/profiles'
 import { validateUsername } from '../lib/username'
 import { cn } from '../lib/utils'
+import type { StartingPrices } from '../types/auth'
 import type { TaskCategory } from '../types'
 
 export function EditProfilePage() {
   const navigate = useNavigate()
-  const { user, refreshProfile } = useAuth()
+  const { user, session, refreshProfile } = useAuth()
+  const { coords, requestLocation } = useGeolocation()
   const { t } = useTranslation()
   const { setCurrency, getCurrencyLabel } = useCurrency()
   const toast = useToast()
   const [fullName, setFullName] = useState('')
   const [username, setUsername] = useState('')
   const [location, setLocation] = useState('')
+  const [neighborhood, setNeighborhood] = useState('')
   const [profileCurrency, setProfileCurrency] = useState<SupportedCurrency>('BAM')
   const [bio, setBio] = useState('')
   const [skillsInput, setSkillsInput] = useState('')
   const [serviceCategories, setServiceCategories] = useState<TaskCategory[]>([])
+  const [startingPrices, setStartingPrices] = useState<StartingPrices>({})
+  const [availabilityEnabled, setAvailabilityEnabled] = useState(true)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
@@ -60,9 +67,12 @@ export function EditProfilePage() {
       setFullName(result.profile.fullName)
       setUsername(result.profile.username ?? '')
       setLocation(result.profile.location ?? '')
+      setNeighborhood(result.profile.neighborhood ?? '')
       setBio(result.profile.bio ?? '')
       setSkillsInput(formatSkillsForInput(result.profile.skills))
       setServiceCategories(result.profile.serviceCategories ?? [])
+      setStartingPrices(result.profile.startingPrices ?? {})
+      setAvailabilityEnabled(result.profile.availabilityEnabled !== false)
       setAvatarPreview(result.profile.avatarUrl ?? null)
       if (result.profile.currency) setProfileCurrency(result.profile.currency)
       setIsLoading(false)
@@ -139,9 +149,15 @@ export function EditProfilePage() {
       fullName: fullName.trim(),
       username,
       location,
+      neighborhood,
+      latitude: coords?.lat ?? user.latitude ?? null,
+      longitude: coords?.lng ?? user.longitude ?? null,
       bio: sanitizeBio(bio),
       skills: parseSkillsInput(skillsInput),
       serviceCategories,
+      startingPrices,
+      availabilityEnabled,
+      notificationEmail: session?.user?.email ?? user.email,
       avatarUrl: avatarUrl ?? null,
       currency: profileCurrency,
     })
@@ -175,6 +191,8 @@ export function EditProfilePage() {
       <p className="mb-6 text-sm text-gray-500">{t('profile.editSubtitle')}</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <LocationPromptBanner />
+
         <Card className="flex justify-center py-6">
           <ProfileAvatarPicker
             name={fullName}
@@ -222,6 +240,24 @@ export function EditProfilePage() {
           placeholder={t('profile.cityPlaceholder')}
         />
 
+        <Input
+          label={t('profile.neighborhood')}
+          value={neighborhood}
+          onChange={(event) => setNeighborhood(event.target.value)}
+          hint={t('profile.neighborhoodHint')}
+        />
+
+        <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-3">
+          <p className="text-xs font-medium text-gray-700">
+            {coords ? t('geolocation.coordsSaved') : t('geolocation.manualFallbackHint')}
+          </p>
+          {!coords && (
+            <Button type="button" size="sm" className="mt-2" onClick={requestLocation}>
+              {t('geolocation.enable')}
+            </Button>
+          )}
+        </div>
+
         <div>
           <p className="mb-1.5 text-sm font-semibold text-gray-700">{t('currency.preference')}</p>
           <p className="mb-3 text-xs text-gray-500">{t('currency.preferenceHint')}</p>
@@ -255,7 +291,25 @@ export function EditProfilePage() {
           rows={4}
         />
 
-        <ServiceCategorySelect value={serviceCategories} onChange={setServiceCategories} />
+        <ServiceOfferingFields
+          serviceCategories={serviceCategories}
+          startingPrices={startingPrices}
+          availabilityEnabled={availabilityEnabled}
+          onCategoriesChange={setServiceCategories}
+          onStartingPriceChange={(category, value) => {
+            const amount = Number(value)
+            setStartingPrices((current) => {
+              const next = { ...current }
+              if (!value || !Number.isFinite(amount) || amount <= 0) {
+                delete next[category]
+                return next
+              }
+              next[category] = amount
+              return next
+            })
+          }}
+          onAvailabilityChange={setAvailabilityEnabled}
+        />
 
         <Input
           label={t('profile.skills')}

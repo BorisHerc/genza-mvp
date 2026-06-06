@@ -11,7 +11,7 @@ import type { Coordinates } from '../lib/place-coordinates'
 
 const GEO_STORAGE_KEY = 'genza_coords'
 const GEO_DENIED_KEY = 'genza_geolocation_denied'
-const GEO_MAX_AGE_MS = 1000 * 60 * 60 * 12
+const GEO_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7
 
 export type GeolocationStatus =
   | 'idle'

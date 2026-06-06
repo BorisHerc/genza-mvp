@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Calendar, Edit3, ExternalLink, LogOut, MapPin, Shield, Star } from 'lucide-react'
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher'
+import { ProfileCompletionCard } from '../components/onboarding/ProfileCompletionCard'
 import { CompletedWorkList } from '../components/profile/CompletedWorkList'
 import { PageMeta } from '../components/profile/PageMeta'
 import { ProfileBadges } from '../components/profile/ProfileBadges'
@@ -31,7 +32,7 @@ import type { CompletedWorkItem, PublicProfile, ReviewAuthoredDetails, ReviewWit
 
 export function ProfilePage() {
   const navigate = useNavigate()
-  const { user, signOut } = useAuth()
+  const { user, signOut, needsProfileCompletionReminder } = useAuth()
   const { t } = useTranslation()
   const [profile, setProfile] = useState<PublicProfile | null>(null)
   const [reviewsReceived, setReviewsReceived] = useState<ReviewWithDetails[]>([])
@@ -125,6 +126,7 @@ export function ProfilePage() {
       />
 
       <div className="px-4 pt-6 pb-8">
+        {needsProfileCompletionReminder && <ProfileCompletionCard className="mb-4" />}
         <section className="mb-6 flex flex-col items-center text-center">
           <Avatar
             name={profile.fullName}

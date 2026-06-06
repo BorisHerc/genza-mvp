@@ -10,10 +10,16 @@ export interface ProfileRow {
   avatar_url: string | null
   role: 'client' | 'tasker' | 'user' | 'admin' | null
   location: string | null
+  neighborhood: string | null
+  latitude: number | null
+  longitude: number | null
   username: string | null
   bio: string | null
   skills: string[] | null
   service_categories: string[] | null
+  starting_prices: Record<string, number> | null
+  availability_enabled: boolean | null
+  notification_email: string | null
   last_seen_at: string | null
   verified: boolean | null
   suspended_at: string | null
@@ -72,7 +78,7 @@ export interface MessageRow {
 export interface NotificationRow {
   id: string
   user_id: string
-  type: 'new_offer' | 'offer_accepted' | 'new_message' | 'review_received'
+  type: 'new_offer' | 'offer_accepted' | 'new_message' | 'review_received' | 'nearby_task'
   title: string
   body: string
   task_id: string | null

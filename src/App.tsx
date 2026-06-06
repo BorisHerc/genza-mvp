@@ -8,6 +8,7 @@ import {
 import { LegalLayout } from './components/legal/LegalLayout'
 import { AppLayout } from './components/layout/AppLayout'
 import { ScrollToTop } from './components/layout/ScrollToTop'
+import { AppEffects } from './components/layout/AppEffects'
 import { CurrencyProvider } from './context/CurrencyContext'
 import { GeolocationProvider } from './context/GeolocationContext'
 import { LocaleProvider } from './context/LocaleContext'
@@ -44,6 +45,7 @@ function App() {
     <LocaleProvider>
     <AuthProvider>
       <GeolocationProvider>
+      <AppEffects />
       <CurrencyProvider>
       <ToastProvider>
         <NotificationsProvider>

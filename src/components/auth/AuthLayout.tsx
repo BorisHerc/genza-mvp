@@ -10,6 +10,7 @@ interface AuthLayoutProps {
   title: string
   subtitle?: string
   backTo?: string
+  onBack?: () => void
   showBack?: boolean
   step?: number
   totalSteps?: number
@@ -21,6 +22,7 @@ export function AuthLayout({
   title,
   subtitle,
   backTo = '/auth/login',
+  onBack,
   showBack = true,
   step,
   totalSteps,
@@ -36,7 +38,7 @@ export function AuthLayout({
           {showBack && (
             <button
               type="button"
-              onClick={() => navigate(backTo)}
+              onClick={() => (onBack ? onBack() : navigate(backTo))}
               className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-brand-600"
             >
               <ArrowLeft className="h-4 w-4" />

@@ -6,6 +6,7 @@ import { LocalActivityFeed } from '../components/home/LocalActivityFeed'
 import { LocationPromptBanner } from '../components/location/LocationPromptBanner'
 import { RecentlyCompletedStrip } from '../components/home/RecentlyCompletedStrip'
 import { TrendingCategoriesSection } from '../components/home/TrendingCategoriesSection'
+import { ProfileCompletionCard } from '../components/onboarding/ProfileCompletionCard'
 import { WelcomeCard } from '../components/onboarding/WelcomeCard'
 import type { TaskCategory } from '../types'
 import { CompletedTasksSection } from '../components/tasks/CompletedTasksSection'
@@ -30,7 +31,7 @@ import type { PublicProfile } from '../types/profile'
 export function HomePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, needsProfileCompletionReminder } = useAuth()
   const proximityOptions = useProximityOptions()
   const [tasks, setTasks] = useState<Task[]>([])
   const [featuredTaskers, setFeaturedTaskers] = useState<PublicProfile[]>([])
@@ -118,7 +119,9 @@ export function HomePage() {
 
   return (
     <div className="px-4 pt-4 pb-2">
-      {user && showWelcome && (
+      {user && needsProfileCompletionReminder && <ProfileCompletionCard />}
+
+      {user && showWelcome && !needsProfileCompletionReminder && (
         <WelcomeCard
           userId={user.id}
           userName={user.fullName}
@@ -126,7 +129,7 @@ export function HomePage() {
         />
       )}
 
-      {!showWelcome && (
+      {!showWelcome && !needsProfileCompletionReminder && (
         <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-700 p-5 text-white shadow-lg shadow-brand-600/20">
           <div>
             <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold backdrop-blur-sm">

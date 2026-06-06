@@ -4,6 +4,8 @@ import type { NotificationRow } from '../types/database'
 import { getSupabaseErrorMessage, getSupabaseRawErrorMessage } from './errors'
 import { translate } from './i18n'
 import { isUuid, parseNumericChatId, parseNumericTaskId, sameUserId } from './ids'
+import type { EmailNotificationKind } from './email/types'
+import { trySendEmailNotification } from './email'
 import { normalizeNotificationType } from './notification-display'
 import { supabase } from './supabase'
 
@@ -177,7 +179,37 @@ export async function createNotification(input: {
     console.log(`[Genza] ${input.logContext} (after insert)`, { success: true })
   }
 
+  const emailKind = notificationTypeToEmailKind(input.type)
+  if (emailKind) {
+    const actionUrl = buildNotificationActionUrl(input)
+    void trySendEmailNotification({
+      userId: input.userId,
+      kind: emailKind,
+      title: input.title,
+      body: input.body,
+      actionUrl,
+    })
+  }
+
   return { success: true, error: undefined, row: null }
+}
+
+function notificationTypeToEmailKind(type: NotificationType): EmailNotificationKind | null {
+  if (type === 'new_offer' || type === 'offer_accepted' || type === 'new_message' || type === 'nearby_task') {
+    return type
+  }
+  return null
+}
+
+function buildNotificationActionUrl(input: {
+  taskId?: string
+  chatId?: string
+}): string | undefined {
+  if (typeof window === 'undefined') return undefined
+  const origin = window.location.origin
+  if (input.chatId) return `${origin}/messages/${input.chatId}`
+  if (input.taskId) return `${origin}/tasks/${input.taskId}`
+  return `${origin}/notifications`
 }
 
 function truncatePreview(text: string, maxLength = 80) {
@@ -246,6 +278,17 @@ export async function notifyNewMessage(input: {
     logNotificationInsertFailure('message notification', payload, error)
     return { success: false, error: getSupabaseErrorMessage(error), skipped: false as const }
   }
+
+  void trySendEmailNotification({
+    userId: receiverId,
+    kind: 'new_message',
+    title: payload.title,
+    body: payload.body,
+    actionUrl:
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/messages/${numericChatId}`
+        : undefined,
+  })
 
   return { success: true, error: undefined, skipped: false as const }
 }

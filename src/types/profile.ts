@@ -1,5 +1,6 @@
 import type { SupportedCurrency } from '../lib/currency'
 import type { LegacyProfileRole, SystemRole } from '../lib/roles'
+import type { StartingPrices } from './auth'
 import type { TaskCategory } from './index'
 
 export interface ProfileStats {
@@ -33,9 +34,12 @@ export interface PublicProfile {
   role: LegacyProfileRole | null
   systemRole: SystemRole
   location: string | null
+  neighborhood: string | null
   bio: string | null
   skills: string[]
   serviceCategories: TaskCategory[]
+  startingPrices: StartingPrices
+  availabilityEnabled: boolean
   verified: boolean
   joinedAt: string
   stats: ProfileStats
@@ -82,9 +86,15 @@ export interface ProfileEditInput {
   fullName: string
   username: string
   location: string
+  neighborhood?: string
+  latitude?: number | null
+  longitude?: number | null
   bio: string
   skills: string[]
   serviceCategories: TaskCategory[]
+  startingPrices: StartingPrices
+  availabilityEnabled: boolean
+  notificationEmail?: string | null
   avatarUrl?: string | null
   currency?: SupportedCurrency
 }

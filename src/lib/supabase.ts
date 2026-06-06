@@ -22,3 +22,9 @@ export const supabase = createClient(
 )
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
+
+if (!isSupabaseConfigured && import.meta.env.PROD) {
+  console.error(
+    '[Genza] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Set them in Vercel environment variables.',
+  )
+}

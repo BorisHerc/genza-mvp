@@ -61,6 +61,7 @@ export interface TaskProximity {
 
 export interface ProximityOptions {
   userCoords?: Coordinates | null
+  profileCoords?: Coordinates | null
   profileLocation?: string | null
   viewerLocation?: string | null
 }
@@ -104,13 +105,17 @@ function buildApproxProximity(
   }
 }
 
-/** Resolve viewer position: GPS first, then profile city coordinates. */
+/** Resolve viewer position: GPS first, then stored profile coordinates, then city lookup. */
 export function resolveViewerCoordinates(options: ProximityOptions): {
   coords: Coordinates | null
   source: ProximitySource
 } {
   if (options.userCoords) {
     return { coords: options.userCoords, source: 'gps' }
+  }
+
+  if (options.profileCoords) {
+    return { coords: options.profileCoords, source: 'profile' }
   }
 
   const profileCoords = resolveLocationCoordinates(options.profileLocation)

@@ -11,7 +11,7 @@ import { normalizeUsername, validateUsername, suggestUsername } from './username
 import { supabase } from './supabase'
 
 const PROFILE_COLUMNS =
-  'id, full_name, avatar_url, role, location, username, bio, skills, service_categories, verified, suspended_at, currency, created_at, last_seen_at'
+  'id, full_name, avatar_url, role, location, neighborhood, latitude, longitude, username, bio, skills, service_categories, starting_prices, availability_enabled, notification_email, verified, suspended_at, currency, created_at, last_seen_at'
 
 function mapStatsRow(row: {
   completed_jobs_count: number | string | null
@@ -59,6 +59,21 @@ export function publicProfileFromRow(row: ProfileRow, stats: ProfileStats): Publ
   return mapPublicProfile(row, stats)
 }
 
+function normalizeStartingPrices(
+  value: Record<string, number> | null | undefined,
+): import('../types/auth').StartingPrices {
+  if (!value || typeof value !== 'object') return {}
+  const next: import('../types/auth').StartingPrices = {}
+  for (const [key, raw] of Object.entries(value)) {
+    if (!TASK_CATEGORY_VALUES.includes(key as TaskCategory)) continue
+    const amount = Number(raw)
+    if (Number.isFinite(amount) && amount > 0) {
+      next[key as TaskCategory] = amount
+    }
+  }
+  return next
+}
+
 function mapPublicProfile(row: ProfileRow, stats: ProfileStats): PublicProfile {
   return {
     id: row.id,
@@ -68,9 +83,12 @@ function mapPublicProfile(row: ProfileRow, stats: ProfileStats): PublicProfile {
     role: row.role,
     systemRole: normalizeSystemRole(row.role),
     location: row.location,
+    neighborhood: row.neighborhood ?? null,
     bio: row.bio,
     skills: row.skills ?? [],
     serviceCategories: normalizeServiceCategories(row.service_categories),
+    startingPrices: normalizeStartingPrices(row.starting_prices),
+    availabilityEnabled: row.availability_enabled !== false,
     verified: Boolean(row.verified ?? true),
     joinedAt: row.created_at,
     stats,
@@ -224,9 +242,15 @@ export async function updateProfileRecord(userId: string, input: ProfileEditInpu
     full_name: input.fullName.trim(),
     username,
     location: input.location.trim(),
+    neighborhood: input.neighborhood?.trim() || null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
     bio: sanitizeBio(input.bio) || null,
     skills: parseSkillsInput(input.skills.join(', ')),
     service_categories: input.serviceCategories,
+    starting_prices: input.startingPrices,
+    availability_enabled: input.availabilityEnabled,
+    notification_email: input.notificationEmail?.trim() || null,
     avatar_url: input.avatarUrl ?? null,
     currency: input.currency && isSupportedCurrency(input.currency)
       ? input.currency
@@ -250,7 +274,9 @@ export async function syncProfileFromSetup(
 ) {
   const avatarUrl = data.avatarUrl?.startsWith('http') ? data.avatarUrl : null
   const suggestedUsername = normalizeUsername(suggestUsername(data.fullName.trim(), userId))
-  const currency = getDefaultCurrencyForLocation(data.location.trim())
+  const currency = data.location?.trim()
+    ? getDefaultCurrencyForLocation(data.location.trim())
+    : 'BAM'
 
   const { data: row, error } = await supabase
     .from('profiles')
@@ -258,7 +284,14 @@ export async function syncProfileFromSetup(
       full_name: data.fullName.trim(),
       avatar_url: avatarUrl,
       role: DEFAULT_PROFILE_ROLE,
-      location: data.location.trim(),
+      location: data.location?.trim() || null,
+      neighborhood: data.neighborhood?.trim() || null,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
+      service_categories: data.serviceCategories ?? [],
+      starting_prices: data.startingPrices ?? {},
+      availability_enabled: data.availabilityEnabled !== false,
+      notification_email: data.notificationEmail?.trim() || null,
       username: suggestedUsername,
       currency,
     })
@@ -270,12 +303,33 @@ export async function syncProfileFromSetup(
   return { profile: row as ProfileRow, error: undefined }
 }
 
-/** Mark the user as recently active for nearby task matching. */
-export async function touchLastSeen(userId: string) {
+export async function saveProfileCoordinates(
+  userId: string,
+  coords: { lat: number; lng: number },
+) {
   const { error } = await supabase
     .from('profiles')
-    .update({ last_seen_at: new Date().toISOString() })
+    .update({
+      latitude: coords.lat,
+      longitude: coords.lng,
+    })
     .eq('id', userId)
+
+  if (error && import.meta.env.DEV) {
+    console.warn('[Genza] saveProfileCoordinates failed', error.message)
+  }
+}
+
+/** Mark the user as recently active for nearby task matching. */
+export async function touchLastSeen(userId: string, email?: string | null) {
+  const payload: Record<string, string> = {
+    last_seen_at: new Date().toISOString(),
+  }
+  if (email?.trim()) {
+    payload.notification_email = email.trim()
+  }
+
+  const { error } = await supabase.from('profiles').update(payload).eq('id', userId)
 
   if (error && import.meta.env.DEV) {
     console.warn('[Genza] touchLastSeen failed', error.message)
