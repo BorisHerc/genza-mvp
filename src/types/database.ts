@@ -75,16 +75,39 @@ export interface MessageRow {
   created_at: string
 }
 
+export interface PushSubscriptionKeys {
+  p256dh: string
+  auth: string
+}
+
+export interface PushSubscriptionRow {
+  id: string
+  user_id: string
+  endpoint: string
+  keys: PushSubscriptionKeys
+  user_agent: string | null
+  created_at: string
+}
+
 export interface NotificationRow {
   id: string
   user_id: string
-  type: 'new_offer' | 'offer_accepted' | 'new_message' | 'review_received' | 'nearby_task'
+  type:
+    | 'new_offer'
+    | 'offer_accepted'
+    | 'new_message'
+    | 'review_received'
+    | 'nearby_task'
+    | 'task_completed'
+    | 'review_needed'
   title: string
   body: string
   task_id: string | null
   offer_id: string | null
   chat_id: string | null
+  link: string | null
   read: boolean
+  read_at: string | null
   created_at: string
 }
 

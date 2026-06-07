@@ -7,6 +7,8 @@ const NOTIFICATION_TYPES: NotificationType[] = [
   'new_message',
   'review_received',
   'nearby_task',
+  'task_completed',
+  'review_needed',
 ]
 
 const NOTIFICATION_TITLE_BY_TYPE: Record<NotificationType, string> = {
@@ -15,6 +17,8 @@ const NOTIFICATION_TITLE_BY_TYPE: Record<NotificationType, string> = {
   new_message: 'notifications.newMessageTitle',
   review_received: 'notifications.reviewReceivedTitle',
   nearby_task: 'notifications.nearbyTaskTitle',
+  task_completed: 'notifications.taskCompletedTitle',
+  review_needed: 'notifications.reviewNeededTitle',
 }
 
 export function normalizeNotificationType(value: unknown): NotificationType {
@@ -86,6 +90,10 @@ export function getNotificationTitle(notification: AppNotification): string {
 
 const NEARBY_TASK_BODY_RE = /^new task nearby: "(.+)"\.$/i
 const NEARBY_TASK_BODY_HR_RE = /^novi posao u blizini: „(.+)“\.$/i
+const TASK_COMPLETED_BODY_RE = /^task completed: "(.+)"\.$/i
+const TASK_COMPLETED_BODY_HR_RE = /^posao završen: „(.+)“\.$/i
+const REVIEW_NEEDED_BODY_RE = /^leave a review for "(.+)"\.$/i
+const REVIEW_NEEDED_BODY_HR_RE = /^ostavite recenziju za „(.+)“\.$/i
 
 export function getNotificationBody(notification: AppNotification): string {
   const body = notification.body.trim()
@@ -116,6 +124,16 @@ export function getNotificationBody(notification: AppNotification): string {
     return translate('notifications.nearbyTaskBodyWithTask', { task: nearbyMatch[1] })
   }
 
+  const completedMatch = body.match(TASK_COMPLETED_BODY_RE) ?? body.match(TASK_COMPLETED_BODY_HR_RE)
+  if (completedMatch && notification.type === 'task_completed') {
+    return translate('notifications.taskCompletedBodyWithTask', { task: completedMatch[1] })
+  }
+
+  const reviewNeededMatch = body.match(REVIEW_NEEDED_BODY_RE) ?? body.match(REVIEW_NEEDED_BODY_HR_RE)
+  if (reviewNeededMatch && notification.type === 'review_needed') {
+    return translate('notifications.reviewNeededBodyWithTask', { task: reviewNeededMatch[1] })
+  }
+
   const reviewDisplay = parseReviewNotificationBody(body)
   if (notification.type === 'review_received' && reviewDisplay.rating != null && !reviewDisplay.commentPreview) {
     return translate('notifications.reviewReceivedStars', { rating: reviewDisplay.rating })
@@ -129,6 +147,10 @@ export function getNotificationBody(notification: AppNotification): string {
 }
 
 export function getNotificationHref(notification: AppNotification): string {
+  if (notification.link?.startsWith('/')) {
+    return notification.link
+  }
+
   if (notification.taskId) {
     return `/tasks/${notification.taskId}`
   }

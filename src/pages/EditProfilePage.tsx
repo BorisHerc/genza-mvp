@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher'
+import { PushNotificationsPanel } from '../components/push/PushNotificationsPanel'
 import { LocationPromptBanner } from '../components/location/LocationPromptBanner'
 import { ServiceOfferingFields } from '../components/profile/ServiceOfferingFields'
 import { ProfileAvatarPicker } from '../components/auth/ProfileAvatarPicker'
@@ -282,6 +283,8 @@ export function EditProfilePage() {
         </div>
 
         <LanguageSwitcher className="rounded-2xl border border-gray-100 bg-white p-4" />
+
+        <PushNotificationsPanel />
 
         <Textarea
           label={t('trust.fieldBio')}

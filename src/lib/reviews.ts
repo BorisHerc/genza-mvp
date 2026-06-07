@@ -253,6 +253,7 @@ export async function submitReview(input: {
 
   const notification = await notifyReviewReceived({
     revieweeId: review.revieweeId,
+    reviewerId: input.reviewerId,
     taskId: review.taskId,
     rating: review.rating,
     comment: review.comment,

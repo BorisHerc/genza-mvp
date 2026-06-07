@@ -58,6 +58,8 @@ export type NotificationType =
   | 'new_message'
   | 'review_received'
   | 'nearby_task'
+  | 'task_completed'
+  | 'review_needed'
 
 export interface AppNotification {
   id: string
@@ -67,7 +69,9 @@ export interface AppNotification {
   taskId?: string
   offerId?: string
   chatId?: string
+  link?: string
   read: boolean
+  readAt?: string
   createdAt: string
 }
 

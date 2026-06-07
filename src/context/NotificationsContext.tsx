@@ -139,10 +139,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       channel = null
     }
 
-    // Poll when realtime is unavailable or disabled.
-    if (!channel) {
-      startPolling()
-    }
+    // Poll as a fallback when realtime is delayed or unavailable.
+    startPolling()
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') sync()

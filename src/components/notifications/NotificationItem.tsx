@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, MapPin, MessageCircle, Star, Tag } from 'lucide-react'
+import { Bell, CheckCheck, CheckCircle2, ClipboardPen, MapPin, MessageCircle, Star, Tag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { AppNotification } from '../../types/marketplace'
 import {
@@ -8,6 +8,7 @@ import {
   isReviewNotification,
   parseReviewNotificationBody,
 } from '../../lib/notification-display'
+import { formatNotificationTime } from '../../lib/notification-time'
 import { cn } from '../../lib/utils'
 import { Card } from '../ui/Card'
 
@@ -23,6 +24,10 @@ function getNotificationIcon(type: AppNotification['type']) {
       return Star
     case 'nearby_task':
       return MapPin
+    case 'task_completed':
+      return CheckCircle2
+    case 'review_needed':
+      return ClipboardPen
     default:
       return Bell
   }
@@ -102,7 +107,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
             )}
 
             <p className="mt-1 text-xs text-gray-400">
-              {new Date(notification.createdAt).toLocaleString()}
+              {formatNotificationTime(notification.createdAt)}
             </p>
           </div>
         </div>

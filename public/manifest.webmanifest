@@ -1,0 +1,26 @@
+{
+  "name": "Genza — lokalna pomoć",
+  "short_name": "Genza",
+  "description": "Genza povezuje vas s pouzdanim lokalnim izvršiteljima za svaki posao.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f9fafb",
+  "theme_color": "#16a34a",
+  "lang": "hr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

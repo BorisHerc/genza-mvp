@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AuthLayout } from '../../components/auth/AuthLayout'
 import { ProfileAvatarPicker } from '../../components/auth/ProfileAvatarPicker'
 import { OnboardingIntentStep } from '../../components/onboarding/OnboardingIntentStep'
+import { PushNotificationsPanel } from '../../components/push/PushNotificationsPanel'
 import { LocationSetupPanel } from '../../components/profile/LocationSetupPanel'
 import { ServiceSetupPanel } from '../../components/profile/ServiceSetupPanel'
 import { Button } from '../../components/ui/Button'
@@ -250,6 +251,8 @@ export function ProfileSetupPage() {
               {error}
             </div>
           )}
+
+          <PushNotificationsPanel compact />
 
           <div className="flex gap-2">
             <Button type="button" variant="outline" fullWidth onClick={() => setStep(2)}>

@@ -8,6 +8,13 @@ import { NotificationListSkeleton } from '../components/ui/Skeletons'
 import { NotificationItem } from '../components/notifications/NotificationItem'
 import { useNotifications } from '../context/NotificationsContext'
 import { useTranslation } from '../context/LocaleContext'
+import { groupNotificationsByDate } from '../lib/notification-groups'
+
+const GROUP_LABEL_KEYS = {
+  today: 'notifications.groupToday',
+  yesterday: 'notifications.groupYesterday',
+  earlier: 'notifications.groupEarlier',
+} as const
 
 export function NotificationsPage() {
   const { t } = useTranslation()
@@ -18,6 +25,8 @@ export function NotificationsPage() {
   useEffect(() => {
     void refreshNotifications({ showLoading: true })
   }, [refreshNotifications])
+
+  const grouped = groupNotificationsByDate(notifications)
 
   return (
     <div className="px-4 pt-4 pb-8">
@@ -49,18 +58,27 @@ export function NotificationsPage() {
           onAction={() => navigate('/browse')}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-6">
           {error && (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
               {t('notifications.partialRefreshWarning')}
             </p>
           )}
-          {notifications.map((notification) => (
-            <NotificationItem
-              key={notification.id}
-              notification={notification}
-              onMarkRead={(id) => void markRead(id)}
-            />
+          {grouped.map((group) => (
+            <section key={group.key}>
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                {t(GROUP_LABEL_KEYS[group.key])}
+              </h2>
+              <div className="space-y-3">
+                {group.items.map((notification) => (
+                  <NotificationItem
+                    key={notification.id}
+                    notification={notification}
+                    onMarkRead={(id) => void markRead(id)}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}

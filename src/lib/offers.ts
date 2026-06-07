@@ -5,7 +5,7 @@ import { translate } from './i18n'
 import { assertOfferInsertPayload, logOfferPayloadDebug, parseNumericTaskId, sameUserId } from './ids'
 import { getTaskProximity } from './distance'
 import { getPriceDelta, getResponseMinutes } from './offer-sort'
-import { createNotification } from './notifications'
+import { createNotification, notifyTaskMarkedComplete } from './notifications'
 import { fetchProfiles, getProfileStats } from './profiles'
 import { supabase } from './supabase'
 import { getTaskById, updateTaskStatus } from './tasks'
@@ -211,6 +211,8 @@ export async function createOffer(
     body: translate('notifications.newOfferBodyWithTask', { task: task.title }),
     taskId: String(taskId),
     offerId: offer.id,
+    actorUserId: taskerId,
+    logContext: 'new_offer notification',
   })
 
   return { offer, error: undefined }
@@ -322,6 +324,8 @@ export async function acceptOffer(taskOwnerId: string, taskIdRaw: string, offerI
     taskId: String(taskId),
     offerId: String(offerId),
     chatId,
+    actorUserId: taskOwnerId,
+    logContext: 'offer_accepted notification',
   })
 
   if (!notification.success && notification.error) {
@@ -376,6 +380,8 @@ export async function cancelAssignment(taskIdRaw: string, ownerId: string) {
       title: translate('notifications.assignmentCancelledTitle'),
       body: translate('notifications.assignmentCancelledBody', { task: task.title }),
       taskId: String(taskId),
+      actorUserId: ownerId,
+      logContext: 'assignment_cancelled notification',
     })
   }
 
@@ -411,6 +417,16 @@ export async function completeTask(taskIdRaw: string, ownerId: string) {
   }
 
   const result = await updateTaskStatus(String(taskId), 'completed')
+
+  if (result.success) {
+    void notifyTaskMarkedComplete({
+      taskId: String(taskId),
+      taskTitle: task.title,
+      ownerUserId: task.userId,
+      taskerUserId: task.assignedTaskerId,
+      completedByUserId: ownerId,
+    })
+  }
 
   if (import.meta.env.DEV) {
     console.debug('[Genza] completeTask', {

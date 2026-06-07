@@ -116,7 +116,7 @@ export async function notifyMatchingTaskers(input: NearbyTaskNotificationInput) 
       taskerMatchesLocation(input.taskLocation, taskCoords, row),
   )
 
-  console.log('[Genza] notifyMatchingTaskers', {
+  console.log('[Genza] nearby task matches', {
     taskId: input.taskId,
     category: input.taskCategory,
     taskLocation: input.taskLocation,
