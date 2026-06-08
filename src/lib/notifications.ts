@@ -241,6 +241,8 @@ export async function createNotification(input: {
     return { success: false, error: getSupabaseErrorMessage(error), row: null, skipped: false as const }
   }
 
+  const createdAt = new Date().toISOString()
+
   console.log('[Genza] notification created', {
     type: input.type,
     userId: recipientId,
@@ -248,6 +250,7 @@ export async function createNotification(input: {
     offerId: numericOfferId,
     chatId: numericChatId,
     context: input.logContext ?? null,
+    createdAt,
   })
 
   void preparePushDelivery({
@@ -272,6 +275,7 @@ export async function createNotification(input: {
         chatId: input.chatId,
         link,
       }),
+      createdAt,
     })
   }
 

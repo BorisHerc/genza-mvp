@@ -2,7 +2,9 @@ import { Activity } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Task } from '../../types'
 import { buildTaskActivityFeed } from '../../lib/activity-labels'
+import { useAuth } from '../../context/AuthContext'
 import { useTranslation } from '../../context/LocaleContext'
+import { canViewTaskOfferInsights } from '../../lib/offer-visibility'
 import { getPublicTaskPath } from '../../lib/task-slug'
 import { Card } from '../ui/Card'
 
@@ -12,12 +14,15 @@ interface LocalActivityFeedProps {
 
 export function LocalActivityFeed({ tasks }: LocalActivityFeedProps) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const items = buildTaskActivityFeed(
     tasks.map((task) => ({
       id: task.id,
       title: task.title,
-      offerCount: task.offerCount,
+      offerCount: canViewTaskOfferInsights({ task, isAdmin: user?.role === 'admin' })
+        ? task.offerCount
+        : 0,
       postedAt: task.postedAt,
       location: task.location,
       category: task.category,

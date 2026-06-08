@@ -27,6 +27,7 @@ const ENABLED_EMAIL_TYPES = new Set<EmailNotificationType>([
   'new_message',
   'new_offer',
   'offer_accepted',
+  'nearby_task',
   'task_completed',
   'review_received',
 ])

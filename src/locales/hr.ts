@@ -51,6 +51,11 @@ export const hr: TranslationDictionary = {
     signIn: 'Prijava',
     searchPlaceholder: 'Pretraži poslove, kategorije...',
   },
+  search: {
+    noResults: 'Nema rezultata pretrage',
+    noResultsHint: 'Pokušajte drugu riječ, kategoriju ili lokaciju.',
+    clearSearch: 'Očisti pretragu',
+  },
   auth: {
     welcomeBack: 'Dobrodošli natrag',
     signInSubtitle: 'Prijavite se za upravljanje poslovima, ponudama i porukama.',

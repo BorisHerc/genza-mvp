@@ -1,5 +1,6 @@
 import { Bell, ChevronDown, MapPin, Search } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../context/NotificationsContext'
 import { useTranslation } from '../../context/LocaleContext'
@@ -13,9 +14,39 @@ interface HeaderProps {
 export function Header({ location = 'Mostar, BiH' }: HeaderProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user, isAuthenticated } = useAuth()
   const { unreadCount } = useNotifications()
   const displayLocation = isAuthenticated ? user?.location ?? location : location
+  const urlQuery = searchParams.get('q') ?? ''
+  const [searchValue, setSearchValue] = useState(urlQuery)
+
+  useEffect(() => {
+    setSearchValue(urlQuery)
+  }, [urlQuery])
+
+  const commitSearch = useCallback(
+    (value: string) => {
+      const trimmed = value.trim()
+      const next = new URLSearchParams(searchParams)
+      if (trimmed) {
+        next.set('q', trimmed)
+      } else {
+        next.delete('q')
+      }
+      setSearchParams(next, { replace: true })
+    },
+    [searchParams, setSearchParams],
+  )
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchValue.trim() !== urlQuery.trim()) {
+        commitSearch(searchValue)
+      }
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [searchValue, urlQuery, commitSearch])
 
   return (
     <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur-md">
@@ -63,7 +94,16 @@ export function Header({ location = 'Mostar, BiH' }: HeaderProps) {
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="search"
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                commitSearch(searchValue)
+              }
+            }}
             placeholder={t('nav.searchPlaceholder')}
+            aria-label={t('nav.searchPlaceholder')}
             className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm outline-none focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100"
           />
         </div>

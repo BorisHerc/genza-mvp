@@ -21,7 +21,9 @@ import {
   getCategoryLabel,
 } from '../../lib/utils'
 import { formatOffersCount } from '../../lib/i18n'
+import { useAuth } from '../../context/AuthContext'
 import { useTranslation } from '../../context/LocaleContext'
+import { canViewTaskOfferInsights } from '../../lib/offer-visibility'
 import { useProximityOptions } from '../../hooks/useProximityOptions'
 import { TaskDistanceBadge } from '../location/TaskDistanceBadge'
 import { TaskStatusBadge } from './TaskStatusBadge'
@@ -38,11 +40,16 @@ interface TaskCardProps {
 
 export function TaskCard({ task, reviewRating, proximity: proximityProp, onClick }: TaskCardProps) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const proximityOptions = useProximityOptions()
   const proximity = proximityProp ?? getTaskProximity(task.location, proximityOptions)
   const categoryIcon = getCategoryIcon(task.category)
-  const interestLabel = getTaskInterestLabel(task.offerCount)
-  const popularityLabel = getLocalPopularityLabel(task.location, task.offerCount)
+  const showOfferInsights = canViewTaskOfferInsights({
+    task,
+    isAdmin: user?.role === 'admin',
+  })
+  const interestLabel = showOfferInsights ? getTaskInterestLabel(task.offerCount) : undefined
+  const popularityLabel = showOfferInsights ? getLocalPopularityLabel(task.location, task.offerCount) : undefined
   const freshnessLabel = getFreshnessLabel(task.postedAt)
 
   return (
@@ -146,10 +153,12 @@ export function TaskCard({ task, reviewRating, proximity: proximityProp, onClick
             </div>
 
             <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-gray-500">
-              <span className="inline-flex min-h-7 items-center gap-1">
-                <Users className="h-3.5 w-3.5" />
-                {formatOffersCount(task.offerCount)}
-              </span>
+              {showOfferInsights && (
+                <span className="inline-flex min-h-7 items-center gap-1">
+                  <Users className="h-3.5 w-3.5" />
+                  {formatOffersCount(task.offerCount)}
+                </span>
+              )}
               <span className="inline-flex min-h-7 items-center gap-1">
                 <MessageSquare className="h-3.5 w-3.5" />
                 {t('common.chatReady')}

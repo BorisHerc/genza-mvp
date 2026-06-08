@@ -10,13 +10,6 @@ export {
   type InvokeNotificationEmailInput,
 } from './invoke-notification-email'
 
-/** Types emailed from createNotification (action-specific types use direct invoke). */
-const EMAIL_FROM_CREATE_NOTIFICATION = new Set<EmailNotificationKind>([
-  'offer_accepted',
-  'task_completed',
-  'review_received',
-])
-
 async function lookupProfileNotificationEmail(userId: string): Promise<string | null> {
   const { data, error } = await supabase
     .from('profiles')
@@ -36,8 +29,7 @@ async function lookupProfileNotificationEmail(userId: string): Promise<string | 
 }
 
 /**
- * Invokes send-notification-email for types handled inside createNotification.
- * new_message and new_offer are invoked directly from chats.ts / offers.ts.
+ * Invokes send-notification-email immediately after notification insert (async, non-blocking).
  */
 export async function invokeSendNotificationEmail(input: {
   userId: string
@@ -48,11 +40,8 @@ export async function invokeSendNotificationEmail(input: {
   offerId?: string
   chatId?: string
   actionUrl?: string
+  createdAt?: string
 }) {
-  if (!EMAIL_FROM_CREATE_NOTIFICATION.has(input.notificationType)) {
-    return { sent: false, skipped: true as const, reason: 'handled_at_action_site' }
-  }
-
   const recipientEmail = await lookupProfileNotificationEmail(input.userId)
 
   invokeNotificationEmailDirect({
@@ -65,6 +54,7 @@ export async function invokeSendNotificationEmail(input: {
     chatId: input.chatId,
     recipientEmail,
     actionUrl: input.actionUrl,
+    createdAt: input.createdAt,
   })
 
   return { sent: false, invoked: true as const }

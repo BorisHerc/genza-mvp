@@ -51,6 +51,11 @@ export const en: TranslationDictionary = {
     signIn: 'Sign in',
     searchPlaceholder: 'Search tasks, categories...',
   },
+  search: {
+    noResults: 'No search results',
+    noResultsHint: 'Try a different word, category, or location.',
+    clearSearch: 'Clear search',
+  },
   auth: {
     welcomeBack: 'Welcome back',
     signInSubtitle: 'Sign in to manage your tasks, offers, and messages.',

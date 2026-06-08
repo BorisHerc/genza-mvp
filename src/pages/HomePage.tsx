@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ClipboardList, Sparkles, TrendingUp } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { ClipboardList, Search, Sparkles, TrendingUp } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { FeaturedTaskersSection } from '../components/home/FeaturedTaskersSection'
 import { LocalActivityFeed } from '../components/home/LocalActivityFeed'
 import { LocationPromptBanner } from '../components/location/LocationPromptBanner'
@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTranslation } from '../context/LocaleContext'
 import { useProximityOptions } from '../hooks/useProximityOptions'
 import { sortTasksByProximity } from '../lib/distance'
+import { filterTasksBySearchQuery, logTaskSearchResults } from '../lib/task-search'
 import { listFeaturedTaskers } from '../lib/marketplace-home'
 import { isWelcomeDismissed } from '../lib/profile-trust'
 import { listReviewsReceivedByUser } from '../lib/reviews'
@@ -44,6 +45,8 @@ export function HomePage() {
   const [error, setError] = useState('')
   const [activeCategory, setActiveCategory] = useState<TaskCategory | 'all'>('all')
   const [showWelcome, setShowWelcome] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchQuery = searchParams.get('q') ?? ''
 
   useEffect(() => {
     if (user?.id) {
@@ -112,10 +115,19 @@ export function HomePage() {
   }, [user?.id])
 
   const filteredTasks = useMemo(() => {
-    const base =
+    const byCategory =
       activeCategory === 'all' ? tasks : tasks.filter((task) => task.category === activeCategory)
-    return sortTasksByProximity(base, proximityOptions)
-  }, [tasks, activeCategory, proximityOptions])
+    const searched = filterTasksBySearchQuery(byCategory, searchQuery)
+    const sorted = sortTasksByProximity(searched, proximityOptions)
+    logTaskSearchResults(searchQuery, sorted.length, tasks.length)
+    return sorted
+  }, [tasks, activeCategory, searchQuery, proximityOptions])
+
+  const clearSearch = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('q')
+    setSearchParams(next, { replace: true })
+  }
 
   return (
     <div className="px-4 pt-4 pb-2">
@@ -216,17 +228,35 @@ export function HomePage() {
           <ErrorState message={error} onAction={() => void loadTasks()} />
         ) : filteredTasks.length === 0 ? (
           <EmptyState
-            icon={<ClipboardList className="h-6 w-6" />}
-            title={t('tasks.noOpenTasks')}
+            icon={searchQuery.trim() ? <Search className="h-6 w-6" /> : <ClipboardList className="h-6 w-6" />}
+            title={searchQuery.trim() ? t('search.noResults') : t('tasks.noOpenTasks')}
             description={
-              activeCategory === 'all'
-                ? t('tasks.noOpenTasksHint')
-                : t('tasks.tryAnotherCategory')
+              searchQuery.trim()
+                ? t('search.noResultsHint')
+                : activeCategory === 'all'
+                  ? t('tasks.noOpenTasksHint')
+                  : t('tasks.tryAnotherCategory')
             }
-            actionLabel={t('tasks.postTask')}
-            onAction={() => navigate('/post')}
-            secondaryActionLabel={activeCategory !== 'all' ? t('tasks.clearFilter') : t('tasks.browseAllTasks')}
-            onSecondaryAction={() => (activeCategory !== 'all' ? setActiveCategory('all') : navigate('/browse'))}
+            actionLabel={searchQuery.trim() ? t('search.clearSearch') : t('tasks.postTask')}
+            onAction={() => (searchQuery.trim() ? clearSearch() : navigate('/post'))}
+            secondaryActionLabel={
+              searchQuery.trim()
+                ? t('tasks.browseAllTasks')
+                : activeCategory !== 'all'
+                  ? t('tasks.clearFilter')
+                  : t('tasks.browseAllTasks')
+            }
+            onSecondaryAction={() => {
+              if (searchQuery.trim()) {
+                clearSearch()
+                return
+              }
+              if (activeCategory !== 'all') {
+                setActiveCategory('all')
+                return
+              }
+              navigate('/browse')
+            }}
           />
         ) : (
           <div className="flex flex-col gap-5">

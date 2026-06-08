@@ -12,7 +12,6 @@ import { useToast } from '../context/ToastContext'
 import { useNotifications } from '../context/NotificationsContext'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useVisualViewportInset } from '../hooks/useVisualViewportInset'
-import { sendChatMessageEmailNotification } from '../lib/email/send-notification-email-invoke'
 import {
   listMessages,
   markChatNotificationsRead,
@@ -167,7 +166,7 @@ export function ChatPage() {
     )
   }
 
-  const messagesPaddingBottom = composerHeight + keyboardInset + 8
+  const messagesPaddingBottom = composerHeight + keyboardInset + 12
 
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-gray-50">
@@ -190,7 +189,9 @@ export function ChatPage() {
       <div
         ref={scrollContainerRef}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-safe px-4 py-4"
-        style={{ paddingBottom: messagesPaddingBottom }}
+        style={{
+          paddingBottom: `calc(${messagesPaddingBottom}px + env(safe-area-inset-bottom, 0px))`,
+        }}
       >
         {messages.length === 0 ? (
           <ChatEmptyState />
@@ -202,19 +203,14 @@ export function ChatPage() {
 
       <div
         ref={composerRef}
-        className="chat-composer fixed inset-x-0 z-30 mx-auto w-full max-w-lg lg:max-w-2xl"
-        style={{ bottom: keyboardInset }}
+        className="chat-composer pointer-events-none fixed inset-x-0 z-50 mx-auto w-full max-w-lg lg:max-w-2xl"
+        style={{ bottom: `calc(${keyboardInset}px + env(safe-area-inset-bottom, 0px))` }}
       >
+        <div className="pointer-events-auto">
         <ChatComposer
           disabled={!chat.canSendMessages}
           onFocus={() => scrollToLatest('smooth')}
           onSend={async (text) => {
-            console.log('[GENZA EMAIL] message flow reached', {
-              source: 'ChatPage.onSend',
-              chatId,
-              userId: user?.id ?? null,
-            })
-
             if (!user || !chatId) return t('chat.sendFailed')
 
             const result = await sendMessage(chatId, user.id, text)
@@ -229,18 +225,12 @@ export function ChatPage() {
                 return [...current, result.message!]
               })
               scrollToLatest('smooth')
-
-              await sendChatMessageEmailNotification({
-                recipientUserId: result.recipientUserId ?? chat.otherUserId,
-                senderUserId: user.id,
-                chatId,
-                taskId: result.taskId ?? chat.taskId,
-              })
             }
 
             return undefined
           }}
         />
+        </div>
       </div>
     </div>
   )

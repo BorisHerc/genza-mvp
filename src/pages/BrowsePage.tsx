@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Sparkles } from 'lucide-react'
 import { PageMeta } from '../components/profile/PageMeta'
 import { getMockCategories } from '../data/mockCategories'
@@ -10,9 +10,11 @@ import { LocationPromptBanner } from '../components/location/LocationPromptBanne
 import { EmptyState } from '../components/ui/EmptyState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { TaskListSkeleton } from '../components/ui/Skeletons'
+import { useAuth } from '../context/AuthContext'
 import { useTranslation } from '../context/LocaleContext'
 import { useProximityOptions } from '../hooks/useProximityOptions'
 import { sortTasksByProximity } from '../lib/distance'
+import { filterTasksBySearchQuery, logTaskSearchResults } from '../lib/task-search'
 import { getPublicTaskPath } from '../lib/task-slug'
 import { listPublicBrowsableTasks } from '../lib/tasks'
 import type { Task } from '../types'
@@ -20,8 +22,11 @@ import type { Task } from '../types'
 export function BrowsePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const proximityOptions = useProximityOptions()
   const mockCategories = getMockCategories()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchQuery = searchParams.get('q') ?? ''
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -34,7 +39,7 @@ export function BrowsePage() {
       setIsLoading(true)
       setError('')
 
-      const result = await listPublicBrowsableTasks()
+      const result = await listPublicBrowsableTasks(user?.id)
       if (cancelled) return
 
       setTasks(result.tasks)
@@ -46,13 +51,22 @@ export function BrowsePage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [user?.id])
 
   const filteredTasks = useMemo(() => {
-    const base =
+    const byCategory =
       activeCategory === 'all' ? tasks : tasks.filter((task) => task.category === activeCategory)
-    return sortTasksByProximity(base, proximityOptions)
-  }, [tasks, activeCategory, proximityOptions])
+    const searched = filterTasksBySearchQuery(byCategory, searchQuery)
+    const sorted = sortTasksByProximity(searched, proximityOptions)
+    logTaskSearchResults(searchQuery, sorted.length, tasks.length)
+    return sorted
+  }, [tasks, activeCategory, searchQuery, proximityOptions])
+
+  const clearSearch = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('q')
+    setSearchParams(next, { replace: true })
+  }
 
   return (
     <>
@@ -99,16 +113,18 @@ export function BrowsePage() {
         ) : filteredTasks.length === 0 ? (
           <EmptyState
             icon={<Search className="h-6 w-6" />}
-            title={t('tasks.noTasksFound')}
+            title={searchQuery.trim() ? t('search.noResults') : t('tasks.noTasksFound')}
             description={
-              activeCategory === 'all'
-                ? t('tasks.noTasksFoundHint')
-                : t('tasks.tryAnotherCategory')
+              searchQuery.trim()
+                ? t('search.noResultsHint')
+                : activeCategory === 'all'
+                  ? t('tasks.noTasksFoundHint')
+                  : t('tasks.tryAnotherCategory')
             }
-            actionLabel={t('tasks.viewAllCategories')}
-            onAction={() => setActiveCategory('all')}
-            secondaryActionLabel={t('tasks.postTask')}
-            onSecondaryAction={() => navigate('/post')}
+            actionLabel={searchQuery.trim() ? t('search.clearSearch') : t('tasks.viewAllCategories')}
+            onAction={() => (searchQuery.trim() ? clearSearch() : setActiveCategory('all'))}
+            secondaryActionLabel={searchQuery.trim() ? t('tasks.viewAllCategories') : t('tasks.postTask')}
+            onSecondaryAction={() => (searchQuery.trim() ? setActiveCategory('all') : navigate('/post'))}
           />
         ) : (
           <section aria-label={t('browse.label')} className="flex flex-col gap-5">

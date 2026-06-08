@@ -34,7 +34,10 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { EmptyState } from '../components/ui/EmptyState'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { sendNewOfferEmailNotification } from '../lib/email/send-notification-email-invoke'
+import {
+  canViewTaskOfferInsights,
+  filterOffersForViewer,
+} from '../lib/offer-visibility'
 import {
   acceptOffer,
   cancelAssignment,
@@ -99,6 +102,8 @@ export function PublicTaskPage() {
 
   const loginRedirect = `${location.pathname}${location.search}`
 
+  const isAdmin = user?.role === 'admin'
+
   const refreshTaskAndOffers = useCallback(async () => {
     if (!taskId) return
 
@@ -114,15 +119,23 @@ export function PublicTaskPage() {
     setTask(taskResult.task)
 
     if (user?.id) {
+      const canViewAllOffers = canViewTaskOfferInsights({
+        task: taskResult.task,
+        isAdmin,
+      })
       const context = {
         taskLocation: taskResult.task.location,
         taskPostedAt: taskResult.task.postedAt,
         taskBudget: taskResult.task.budget,
       }
       const offersResult = await listOffersForTask(taskId, context)
-      setOffers((current) => mergeOfferList(current, offersResult.offers))
+      const visibleOffers = filterOffersForViewer(offersResult.offers, {
+        viewerUserId: user.id,
+        canViewAllOffers,
+      })
+      setOffers((current) => mergeOfferList(current, visibleOffers))
     }
-  }, [taskId, user?.id, t])
+  }, [taskId, user?.id, isAdmin, t])
 
   useEffect(() => {
     let cancelled = false
@@ -146,13 +159,24 @@ export function PublicTaskPage() {
       setTask(taskResult.task)
 
       if (user?.id) {
+        const canViewAllOffers = canViewTaskOfferInsights({
+          task: taskResult.task,
+          isAdmin: user.role === 'admin',
+        })
         const context = {
           taskLocation: taskResult.task.location,
           taskPostedAt: taskResult.task.postedAt,
           taskBudget: taskResult.task.budget,
         }
         const offersResult = await listOffersForTask(taskId, context)
-        if (!cancelled) setOffers(offersResult.offers)
+        if (!cancelled) {
+          setOffers(
+            filterOffersForViewer(offersResult.offers, {
+              viewerUserId: user.id,
+              canViewAllOffers,
+            }),
+          )
+        }
       } else {
         setOffers([])
       }
@@ -181,7 +205,12 @@ export function PublicTaskPage() {
     [pendingOffers, user],
   )
 
-  const displayOfferCount = Math.max(task?.offerCount ?? 0, pendingOffers.length)
+  const canViewAllOffers = Boolean(
+    task && canViewTaskOfferInsights({ task, isAdmin }),
+  )
+  const displayOfferCount = canViewAllOffers
+    ? Math.max(task?.offerCount ?? 0, pendingOffers.length)
+    : 0
 
   const taskStatus = normalizeTaskStatus(task?.rawStatus ?? task?.status)
   const isCompleted =
@@ -381,21 +410,14 @@ export function PublicTaskPage() {
       return result.error ?? t('tasks.offerSubmitFailed')
     }
 
-    if (task) {
-      await sendNewOfferEmailNotification({
-        recipientUserId: result.recipientUserId ?? task.userId,
-        senderUserId: user.id,
-        taskId,
-        offerId: result.offer.id,
-      })
-    }
-
     setOffers((current) => mergeOfferList(current, [result.offer!]))
-    setTask((current) =>
-      current
-        ? { ...current, offerCount: Math.max(current.offerCount + 1, pendingOffers.length + 1) }
-        : current,
-    )
+    if (task?.isOwner || isAdmin) {
+      setTask((current) =>
+        current
+          ? { ...current, offerCount: Math.max(current.offerCount + 1, pendingOffers.length + 1) }
+          : current,
+      )
+    }
     setOfferSubmitted(true)
     setActionError('')
     toast.success(t('tasks.offerSubmitted'))
@@ -500,10 +522,12 @@ export function PublicTaskPage() {
                   {task.scheduledFor}
                 </div>
               )}
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <Users className="h-4 w-4 text-brand-500" />
-                {formatOffersCount(displayOfferCount)}
-              </div>
+              {canViewAllOffers && (
+                <div className="flex items-center gap-3 text-sm text-gray-600">
+                  <Users className="h-4 w-4 text-brand-500" />
+                  {formatOffersCount(displayOfferCount)}
+                </div>
+              )}
               <div className="text-sm text-gray-500">
                 {t('tasks.postedAt', { time: formatRelativeTime(task.postedAt) })}
               </div>
@@ -625,7 +649,7 @@ export function PublicTaskPage() {
             </div>
           )}
 
-          {user && !isCompleted && !isCancelled && task.isOwner && isOpen && (
+          {user && !isCompleted && !isCancelled && (task.isOwner || isAdmin) && isOpen && (
             <section className="space-y-3">
               <h2 className="text-base font-bold text-gray-900">{t('tasks.offersTitle', { count: pendingOffers.length })}</h2>
               {pendingOffers.length === 0 ? (

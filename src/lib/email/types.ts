@@ -2,6 +2,7 @@ export type EmailNotificationKind =
   | 'new_offer'
   | 'offer_accepted'
   | 'new_message'
+  | 'nearby_task'
   | 'task_completed'
   | 'review_received'
 
@@ -9,6 +10,7 @@ export const EMAIL_NOTIFICATION_TYPES = new Set<EmailNotificationKind>([
   'new_offer',
   'offer_accepted',
   'new_message',
+  'nearby_task',
   'task_completed',
   'review_received',
 ])
