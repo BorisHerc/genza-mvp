@@ -73,8 +73,20 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout showBottomNav={false} />}>
                 <Route path="post" element={<PostTaskPage />} />
-                <Route path="messages/:chatId" element={<ChatPage />} />
                 <Route path="profile/edit" element={<EditProfilePage />} />
+              </Route>
+
+              <Route
+                element={
+                  <AppLayout
+                    showHeader={false}
+                    showBottomNav={false}
+                    showFooter={false}
+                    fullHeight
+                  />
+                }
+              >
+                <Route path="messages/:chatId" element={<ChatPage />} />
               </Route>
 
               <Route element={<AppLayout />}>

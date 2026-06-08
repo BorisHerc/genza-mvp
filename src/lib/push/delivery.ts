@@ -1,14 +1,8 @@
 import type { NotificationType } from '../../types/marketplace'
 import { supabase } from '../supabase'
 
-const PUSH_DELIVERY_TYPES = new Set<NotificationType>([
-  'new_offer',
-  'offer_accepted',
-  'new_message',
-  'nearby_task',
-  'review_received',
-  'task_completed',
-])
+/** Phase 1 — expand as edge function delivery is verified for more types. */
+const PUSH_DELIVERY_TYPES = new Set<NotificationType>(['new_offer', 'new_message'])
 
 export interface PushDeliveryPayload {
   userId: string
@@ -25,8 +19,8 @@ function buildAbsoluteUrl(link?: string): string | undefined {
 }
 
 /**
- * Requests push delivery for a user after an in-app notification row is created.
- * Invokes the Supabase Edge Function placeholder — fails silently if unavailable.
+ * Sends web push via Supabase Edge Function after an in-app notification row is created.
+ * Fails silently if the function is unavailable or the user has no subscriptions.
  */
 export async function preparePushDelivery(payload: PushDeliveryPayload): Promise<void> {
   if (!PUSH_DELIVERY_TYPES.has(payload.type)) return
@@ -44,7 +38,7 @@ export async function preparePushDelivery(payload: PushDeliveryPayload): Promise
     })
 
     if (error) {
-      console.warn('[Genza] push delivery preparation failed', {
+      console.warn('[Genza] push delivery failed', {
         userId: payload.userId,
         type: payload.type,
         message: error.message,
@@ -52,13 +46,22 @@ export async function preparePushDelivery(payload: PushDeliveryPayload): Promise
       return
     }
 
-    console.log('[Genza] push delivery prepared', {
+    const result = data as { delivered?: number; failed?: number; skipped?: boolean } | null
+    const delivered = result?.delivered ?? 0
+
+    if (result?.skipped) {
+      console.log('[Genza] push delivery skipped', { userId: payload.userId, type: payload.type })
+      return
+    }
+
+    console.log('[Genza] push delivery complete', {
       userId: payload.userId,
       type: payload.type,
-      result: data ?? null,
+      delivered,
+      failed: result?.failed ?? 0,
     })
   } catch (error) {
-    console.warn('[Genza] push delivery preparation failed', {
+    console.warn('[Genza] push delivery failed', {
       userId: payload.userId,
       type: payload.type,
       error,

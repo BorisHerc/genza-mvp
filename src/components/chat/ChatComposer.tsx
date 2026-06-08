@@ -5,10 +5,11 @@ import { Button } from '../ui/Button'
 
 interface ChatComposerProps {
   onSend: (message: string) => Promise<string | undefined>
+  onFocus?: () => void
   disabled?: boolean
 }
 
-export function ChatComposer({ onSend, disabled }: ChatComposerProps) {
+export function ChatComposer({ onSend, onFocus, disabled }: ChatComposerProps) {
   const { t } = useTranslation()
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -47,7 +48,10 @@ export function ChatComposer({ onSend, disabled }: ChatComposerProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border-t border-gray-100 bg-white p-4 safe-bottom">
+    <form
+      onSubmit={handleSubmit}
+      className="chat-composer-form border-t border-gray-100 bg-white/95 px-4 pt-3 shadow-[0_-4px_24px_-8px_rgb(0_0_0/0.08)] backdrop-blur-md pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"
+    >
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
       <div className="flex items-end gap-2">
         <button
@@ -63,9 +67,11 @@ export function ChatComposer({ onSend, disabled }: ChatComposerProps) {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={onFocus}
           placeholder={t('chat.placeholderMultiline')}
           rows={1}
           disabled={disabled || isSending}
+          enterKeyHint="send"
           className="max-h-[120px] min-h-[44px] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
         />
         <Button

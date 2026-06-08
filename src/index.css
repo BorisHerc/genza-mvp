@@ -79,4 +79,8 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  .chat-composer-form {
+    -webkit-overflow-scrolling: touch;
+  }
 }

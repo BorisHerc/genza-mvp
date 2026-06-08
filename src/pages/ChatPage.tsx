@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChatComposer } from '../components/chat/ChatComposer'
 import { ReportButton } from '../components/moderation/ReportButton'
@@ -10,6 +10,8 @@ import { PageLoader } from '../components/ui/PageLoader'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useNotifications } from '../context/NotificationsContext'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
+import { useVisualViewportInset } from '../hooks/useVisualViewportInset'
 import {
   listMessages,
   markChatNotificationsRead,
@@ -35,7 +37,26 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [composerHeight, setComposerHeight] = useState(88)
+  const keyboardInset = useVisualViewportInset()
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const composerRef = useRef<HTMLDivElement>(null)
+
+  useBodyScrollLock(Boolean(chatId && !isLoading && chat))
+
+  const scrollToLatest = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    requestAnimationFrame(() => {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior,
+      })
+    })
+  }, [])
 
   const load = async () => {
     if (!chatId || !user) return
@@ -69,8 +90,37 @@ export function ChatPage() {
   }, [chatId, user?.id])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (!isLoading && chat) {
+      scrollToLatest('auto')
+    }
+  }, [isLoading, chat, scrollToLatest])
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToLatest('smooth')
+    }
+  }, [messages, scrollToLatest])
+
+  useEffect(() => {
+    if (keyboardInset > 0) {
+      scrollToLatest('auto')
+    }
+  }, [keyboardInset, scrollToLatest])
+
+  useEffect(() => {
+    const composerEl = composerRef.current
+    if (!composerEl) return
+
+    const updateHeight = () => {
+      setComposerHeight(composerEl.offsetHeight)
+    }
+
+    updateHeight()
+    const observer = new ResizeObserver(updateHeight)
+    observer.observe(composerEl)
+
+    return () => observer.disconnect()
+  }, [chat, isLoading])
 
   useEffect(() => {
     if (!chatId || !user) return
@@ -116,53 +166,68 @@ export function ChatPage() {
     )
   }
 
-  return (
-    <div className="flex min-h-[calc(100dvh-4rem)] flex-col">
-      <ChatHeader chat={chat} onBack={() => navigate('/messages')} />
+  const messagesPaddingBottom = composerHeight + keyboardInset + 8
 
-      <div className="border-b border-gray-100 bg-white px-4 pb-3">
-        <ReportButton
-          target={{
-            reportedUserId: chat.otherUserId,
-            taskId: chat.taskId,
-            chatId: chat.id,
-            label: t('chat.reportConversation'),
-          }}
-          variant="outline"
-          className="w-full"
-        />
+  return (
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-gray-50">
+      <div className="z-20 shrink-0 border-b border-gray-100 bg-white">
+        <ChatHeader chat={chat} onBack={() => navigate('/messages')} />
+        <div className="px-4 pb-3">
+          <ReportButton
+            target={{
+              reportedUserId: chat.otherUserId,
+              taskId: chat.taskId,
+              chatId: chat.id,
+              label: t('chat.reportConversation'),
+            }}
+            variant="outline"
+            className="w-full"
+          />
+        </div>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div
+        ref={scrollContainerRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-safe px-4 py-4"
+        style={{ paddingBottom: messagesPaddingBottom }}
+      >
         {messages.length === 0 ? (
           <ChatEmptyState />
         ) : (
           messages.map((message) => <MessageBubble key={message.id} message={message} />)
         )}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="h-px w-full shrink-0" aria-hidden />
       </div>
 
-      <ChatComposer
-        disabled={!chat.canSendMessages}
-        onSend={async (text) => {
-          if (!user || !chatId) return t('chat.sendFailed')
+      <div
+        ref={composerRef}
+        className="chat-composer fixed inset-x-0 z-30 mx-auto w-full max-w-lg lg:max-w-2xl"
+        style={{ bottom: keyboardInset }}
+      >
+        <ChatComposer
+          disabled={!chat.canSendMessages}
+          onFocus={() => scrollToLatest('smooth')}
+          onSend={async (text) => {
+            if (!user || !chatId) return t('chat.sendFailed')
 
-          const result = await sendMessage(chatId, user.id, text)
-          if (result.error) {
-            toast.error(result.error)
-            return result.error
-          }
+            const result = await sendMessage(chatId, user.id, text)
+            if (result.error) {
+              toast.error(result.error)
+              return result.error
+            }
 
-          if (result.message) {
-            setMessages((current) => {
-              if (current.some((item) => item.id === result.message!.id)) return current
-              return [...current, result.message!]
-            })
-          }
+            if (result.message) {
+              setMessages((current) => {
+                if (current.some((item) => item.id === result.message!.id)) return current
+                return [...current, result.message!]
+              })
+              scrollToLatest('smooth')
+            }
 
-          return undefined
-        }}
-      />
+            return undefined
+          }}
+        />
+      </div>
     </div>
   )
 }
