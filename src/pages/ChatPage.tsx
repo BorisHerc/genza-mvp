@@ -12,6 +12,7 @@ import { useToast } from '../context/ToastContext'
 import { useNotifications } from '../context/NotificationsContext'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useVisualViewportInset } from '../hooks/useVisualViewportInset'
+import { sendChatMessageEmailNotification } from '../lib/email/send-notification-email-invoke'
 import {
   listMessages,
   markChatNotificationsRead,
@@ -208,6 +209,12 @@ export function ChatPage() {
           disabled={!chat.canSendMessages}
           onFocus={() => scrollToLatest('smooth')}
           onSend={async (text) => {
+            console.log('[GENZA EMAIL] message flow reached', {
+              source: 'ChatPage.onSend',
+              chatId,
+              userId: user?.id ?? null,
+            })
+
             if (!user || !chatId) return t('chat.sendFailed')
 
             const result = await sendMessage(chatId, user.id, text)
@@ -222,6 +229,13 @@ export function ChatPage() {
                 return [...current, result.message!]
               })
               scrollToLatest('smooth')
+
+              await sendChatMessageEmailNotification({
+                recipientUserId: result.recipientUserId ?? chat.otherUserId,
+                senderUserId: user.id,
+                chatId,
+                taskId: result.taskId ?? chat.taskId,
+              })
             }
 
             return undefined

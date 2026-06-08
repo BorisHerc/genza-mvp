@@ -206,47 +206,7 @@ export async function createOffer(
 
   const recipientUserId = task.user_id
 
-  console.log('[GENZA EMAIL] offer send reached', {
-    taskId,
-    offerId: offer.id,
-    senderId: taskerId,
-  })
-
-  console.log('[GENZA EMAIL] recipient resolved', {
-    recipientUserId,
-    senderId: taskerId,
-    isSelf: sameUserId(recipientUserId, taskerId),
-  })
-
-  if (!sameUserId(recipientUserId, taskerId)) {
-    const emailPayload = {
-      userId: recipientUserId,
-      notificationType: 'new_offer' as const,
-      type: 'new_offer' as const,
-      taskId,
-      offerId: Number(offer.id),
-      title: 'Nova ponuda',
-      body: 'Imate novu ponudu na Genzi.',
-    }
-
-    console.log('[GENZA EMAIL] invoking send-notification-email', emailPayload)
-
-    void (async () => {
-      try {
-        const result = await supabase.functions.invoke('send-notification-email', {
-          body: emailPayload,
-        })
-        console.log('[GENZA EMAIL] invoke result', result)
-      } catch (emailError) {
-        console.log('[GENZA EMAIL] invoke result', {
-          data: null,
-          error: emailError instanceof Error ? emailError.message : String(emailError),
-        })
-      }
-    })()
-  }
-
-  void createNotification({
+  await createNotification({
     userId: recipientUserId,
     type: 'new_offer',
     title: translate('notifications.newOfferTitle'),
@@ -257,7 +217,7 @@ export async function createOffer(
     logContext: 'new_offer notification',
   })
 
-  return { offer, error: undefined }
+  return { offer, recipientUserId, error: undefined }
 }
 
 export async function acceptOffer(taskOwnerId: string, taskIdRaw: string, offerIdRaw: string) {

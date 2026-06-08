@@ -29,6 +29,9 @@ export function ChatComposer({ onSend, onFocus, disabled }: ChatComposerProps) {
 
     setIsSending(true)
     setError('')
+
+    console.log('[GENZA EMAIL] message flow reached', { source: 'ChatComposer.handleSubmit' })
+
     const result = await onSend(message.trim())
     setIsSending(false)
 

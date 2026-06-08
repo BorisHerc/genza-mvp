@@ -34,6 +34,7 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { EmptyState } from '../components/ui/EmptyState'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { sendNewOfferEmailNotification } from '../lib/email/send-notification-email-invoke'
 import {
   acceptOffer,
   cancelAssignment,
@@ -378,6 +379,15 @@ export function PublicTaskPage() {
 
     if (result.error || !result.offer) {
       return result.error ?? t('tasks.offerSubmitFailed')
+    }
+
+    if (task) {
+      await sendNewOfferEmailNotification({
+        recipientUserId: result.recipientUserId ?? task.userId,
+        senderUserId: user.id,
+        taskId,
+        offerId: result.offer.id,
+      })
     }
 
     setOffers((current) => mergeOfferList(current, [result.offer!]))

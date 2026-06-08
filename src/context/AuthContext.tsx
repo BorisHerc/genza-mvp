@@ -18,6 +18,7 @@ import {
 import { fetchProfile, syncProfileFromSetup, touchLastSeen } from '../lib/profiles'
 import { uploadAvatar } from '../lib/avatar-upload'
 import { DEFAULT_PROFILE_ROLE } from '../lib/roles'
+import { clearStaleAuthSession, isRefreshTokenError } from '../lib/auth-session'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { ProfileRow } from '../types/database'
 import type { AuthProfile, OnboardingIntent, ProfileSetupData, SignUpCredentials } from '../types/auth'
@@ -80,15 +81,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function init() {
       clearSelectedRole()
-      const { data } = await supabase.auth.getSession()
+
+      const { data, error } = await supabase.auth.getSession()
       if (!mounted) return
+
+      if (error && isRefreshTokenError(error.message)) {
+        console.warn('[Genza] Stale refresh token on init — signing out locally', error.message)
+        await clearStaleAuthSession()
+        setSession(null)
+        setProfile(null)
+        setUser(null)
+        setIsLoading(false)
+        return
+      }
+
       await syncSession(data.session)
       setIsLoading(false)
     }
 
     init()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (String(event) === 'TOKEN_REFRESH_FAILED') {
+        console.warn('[Genza] TOKEN_REFRESH_FAILED — clearing local session')
+        void clearStaleAuthSession().then(() => {
+          setSession(null)
+          setProfile(null)
+          setUser(null)
+        })
+        return
+      }
+
       void syncSession(nextSession).then((profileRow) => {
         if (nextSession?.user && isProfileComplete(nextSession.user, profileRow)) {
           clearSelectedRole()
