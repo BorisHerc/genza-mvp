@@ -55,9 +55,9 @@ export function invokeNotificationEmail(input: InvokeNotificationEmailInput): vo
   void (async () => {
     try {
       const result = await supabase.functions.invoke('send-notification-email', { body })
-      console.log('[GENZA EMAIL] result', result)
+      console.log('[GENZA EMAIL] invoke result', result)
     } catch (error) {
-      console.log('[GENZA EMAIL] result', {
+      console.log('[GENZA EMAIL] invoke result', {
         data: null,
         error: error instanceof Error ? error.message : String(error),
       })

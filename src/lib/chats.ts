@@ -3,7 +3,6 @@ import type { ChatRow, MessageRow } from '../types/database'
 import { getSupabaseErrorMessage, getSupabaseStepError } from './errors'
 import { translate } from './i18n'
 import { parseNumericChatId, parseNumericTaskId, sameUserId } from './ids'
-import { invokeNotificationEmail } from './email/invoke-notification-email'
 import { notifyNewMessage } from './notifications'
 import { fetchProfiles } from './profiles'
 import { supabase } from './supabase'
@@ -397,39 +396,65 @@ export async function sendMessage(chatIdRaw: string, senderId: string, message: 
   const { profiles } = await fetchProfiles([authUserId])
   const senderName = profiles[0]?.full_name?.trim() || translate('api.senderYou')
 
-  const recipientUserId = chat.otherUserId
+  console.log('[GENZA EMAIL] chat send reached', {
+    chatId,
+    messageId: messageRow.id,
+    senderId: authUserId,
+  })
 
-  const notification = await notifyNewMessage({
+  const recipientUserId = sameUserId(row.user_id, authUserId) ? row.tasker_id : row.user_id
+
+  console.log('[GENZA EMAIL] recipient resolved', {
+    recipientUserId,
+    senderId: authUserId,
+    ownerUserId: row.user_id,
+    taskerUserId: row.tasker_id,
+    isSelf: sameUserId(recipientUserId, authUserId),
+  })
+
+  if (!sameUserId(recipientUserId, authUserId)) {
+    const emailPayload = {
+      userId: recipientUserId,
+      notificationType: 'new_message' as const,
+      type: 'new_message' as const,
+      chatId,
+      taskId: row.task_id ?? null,
+      title: 'Nova poruka',
+      body: 'Imate novu poruku na Genzi.',
+    }
+
+    console.log('[GENZA EMAIL] invoking send-notification-email', emailPayload)
+
+    void (async () => {
+      try {
+        const result = await supabase.functions.invoke('send-notification-email', {
+          body: emailPayload,
+        })
+        console.log('[GENZA EMAIL] invoke result', result)
+      } catch (emailError) {
+        console.log('[GENZA EMAIL] invoke result', {
+          data: null,
+          error: emailError instanceof Error ? emailError.message : String(emailError),
+        })
+      }
+    })()
+  }
+
+  void notifyNewMessage({
     receiverId: recipientUserId,
     senderId: authUserId,
     chatId,
     taskId: row.task_id ?? chat.taskId,
     preview: trimmed,
+  }).then((notification) => {
+    if (!notification.success && !notification.skipped) {
+      console.error('[Genza] sendMessage notification failed', {
+        chatId,
+        recipientId: recipientUserId,
+        error: notification.error,
+      })
+    }
   })
-
-  if (!notification.success && !notification.skipped) {
-    console.error('[Genza] sendMessage notification failed', {
-      chatId,
-      recipientId: recipientUserId,
-      error: notification.error,
-    })
-  }
-
-  if (!sameUserId(recipientUserId, authUserId)) {
-    const taskIdForEmail = row.task_id ?? chat.taskId
-    invokeNotificationEmail({
-      userId: recipientUserId,
-      notificationType: 'new_message',
-      chatId,
-      taskId: taskIdForEmail,
-      title: 'Nova poruka',
-      body: 'Imate novu poruku na Genzi.',
-      actionUrl:
-        typeof window !== 'undefined'
-          ? `${window.location.origin}/messages/${chatId}`
-          : undefined,
-    })
-  }
 
   return {
     message: {
