@@ -1,6 +1,6 @@
-import { Bell, ChevronDown, MapPin, Search } from 'lucide-react'
+import { Bell, ChevronDown, MapPin, Search, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../context/NotificationsContext'
 import { useTranslation } from '../../context/LocaleContext'
@@ -11,33 +11,46 @@ interface HeaderProps {
   location?: string
 }
 
+function isTaskSearchRoute(pathname: string): boolean {
+  return pathname === '/browse' || pathname === '/'
+}
+
+function buildBrowseSearchPath(query: string): string {
+  const trimmed = query.trim()
+  return trimmed ? `/browse?q=${encodeURIComponent(trimmed)}` : '/browse'
+}
+
 export function Header({ location = 'Mostar, BiH' }: HeaderProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const { pathname } = useLocation()
+  const [searchParams] = useSearchParams()
   const { user, isAuthenticated } = useAuth()
   const { unreadCount } = useNotifications()
   const displayLocation = isAuthenticated ? user?.location ?? location : location
-  const urlQuery = searchParams.get('q') ?? ''
+  const onSearchRoute = isTaskSearchRoute(pathname)
+  const urlQuery = onSearchRoute ? (searchParams.get('q') ?? '') : ''
   const [searchValue, setSearchValue] = useState(urlQuery)
 
   useEffect(() => {
-    setSearchValue(urlQuery)
-  }, [urlQuery])
+    if (onSearchRoute) {
+      setSearchValue(urlQuery)
+      return
+    }
+    setSearchValue('')
+  }, [urlQuery, onSearchRoute])
 
   const commitSearch = useCallback(
     (value: string) => {
-      const trimmed = value.trim()
-      const next = new URLSearchParams(searchParams)
-      if (trimmed) {
-        next.set('q', trimmed)
-      } else {
-        next.delete('q')
-      }
-      setSearchParams(next, { replace: true })
+      navigate(buildBrowseSearchPath(value), { replace: true })
     },
-    [searchParams, setSearchParams],
+    [navigate],
   )
+
+  const clearSearch = useCallback(() => {
+    setSearchValue('')
+    navigate('/browse', { replace: true })
+  }, [navigate])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -104,8 +117,18 @@ export function Header({ location = 'Mostar, BiH' }: HeaderProps) {
             }}
             placeholder={t('nav.searchPlaceholder')}
             aria-label={t('nav.searchPlaceholder')}
-            className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm outline-none focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-10 text-sm outline-none focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100"
           />
+          {searchValue.trim() && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              aria-label={t('search.clearSearch')}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     </header>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ClipboardList, Search, Sparkles, TrendingUp } from 'lucide-react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { FeaturedTaskersSection } from '../components/home/FeaturedTaskersSection'
 import { LocalActivityFeed } from '../components/home/LocalActivityFeed'
 import { LocationPromptBanner } from '../components/location/LocationPromptBanner'
@@ -32,6 +32,7 @@ import type { PublicProfile } from '../types/profile'
 export function HomePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { user, needsProfileCompletionReminder } = useAuth()
   const proximityOptions = useProximityOptions()
   const [tasks, setTasks] = useState<Task[]>([])
@@ -45,7 +46,7 @@ export function HomePage() {
   const [error, setError] = useState('')
   const [activeCategory, setActiveCategory] = useState<TaskCategory | 'all'>('all')
   const [showWelcome, setShowWelcome] = useState(false)
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const searchQuery = searchParams.get('q') ?? ''
 
   useEffect(() => {
@@ -119,14 +120,12 @@ export function HomePage() {
       activeCategory === 'all' ? tasks : tasks.filter((task) => task.category === activeCategory)
     const searched = filterTasksBySearchQuery(byCategory, searchQuery)
     const sorted = sortTasksByProximity(searched, proximityOptions)
-    logTaskSearchResults(searchQuery, sorted.length, tasks.length)
+    logTaskSearchResults(pathname, searchQuery, sorted.length, tasks.length)
     return sorted
-  }, [tasks, activeCategory, searchQuery, proximityOptions])
+  }, [tasks, activeCategory, searchQuery, proximityOptions, pathname])
 
   const clearSearch = () => {
-    const next = new URLSearchParams(searchParams)
-    next.delete('q')
-    setSearchParams(next, { replace: true })
+    navigate('/browse', { replace: true })
   }
 
   return (

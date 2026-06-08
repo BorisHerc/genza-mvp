@@ -23,8 +23,14 @@ export function filterTasksBySearchQuery(tasks: Task[], rawQuery: string): Task[
   })
 }
 
-export function logTaskSearchResults(query: string, resultCount: number, totalCount: number) {
-  console.log('[GENZA SEARCH] query/results count', {
+export function logTaskSearchResults(
+  route: string,
+  query: string,
+  resultCount: number,
+  totalCount: number,
+) {
+  console.log('[GENZA SEARCH] route/query/results', {
+    route,
     query: query.trim(),
     results: resultCount,
     total: totalCount,

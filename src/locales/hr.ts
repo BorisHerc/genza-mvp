@@ -52,7 +52,7 @@ export const hr: TranslationDictionary = {
     searchPlaceholder: 'Pretraži poslove, kategorije...',
   },
   search: {
-    noResults: 'Nema rezultata pretrage',
+    noResults: 'Nema rezultata za ovu pretragu.',
     noResultsHint: 'Pokušajte drugu riječ, kategoriju ili lokaciju.',
     clearSearch: 'Očisti pretragu',
   },

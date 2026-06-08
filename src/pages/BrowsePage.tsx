@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Sparkles } from 'lucide-react'
 import { PageMeta } from '../components/profile/PageMeta'
 import { getMockCategories } from '../data/mockCategories'
@@ -22,10 +22,11 @@ import type { Task } from '../types'
 export function BrowsePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { user } = useAuth()
   const proximityOptions = useProximityOptions()
   const mockCategories = getMockCategories()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const searchQuery = searchParams.get('q') ?? ''
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -58,14 +59,12 @@ export function BrowsePage() {
       activeCategory === 'all' ? tasks : tasks.filter((task) => task.category === activeCategory)
     const searched = filterTasksBySearchQuery(byCategory, searchQuery)
     const sorted = sortTasksByProximity(searched, proximityOptions)
-    logTaskSearchResults(searchQuery, sorted.length, tasks.length)
+    logTaskSearchResults(pathname, searchQuery, sorted.length, tasks.length)
     return sorted
-  }, [tasks, activeCategory, searchQuery, proximityOptions])
+  }, [tasks, activeCategory, searchQuery, proximityOptions, pathname])
 
   const clearSearch = () => {
-    const next = new URLSearchParams(searchParams)
-    next.delete('q')
-    setSearchParams(next, { replace: true })
+    navigate('/browse', { replace: true })
   }
 
   return (
