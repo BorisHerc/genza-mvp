@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Search, Sparkles } from 'lucide-react'
 import { PageMeta } from '../components/profile/PageMeta'
 import { getMockCategories } from '../data/mockCategories'
@@ -13,8 +13,8 @@ import { TaskListSkeleton } from '../components/ui/Skeletons'
 import { useAuth } from '../context/AuthContext'
 import { useTranslation } from '../context/LocaleContext'
 import { useProximityOptions } from '../hooks/useProximityOptions'
-import { sortTasksByProximity } from '../lib/distance'
-import { filterTasksBySearchQuery, logTaskSearchResults } from '../lib/task-search'
+import { useTaskSearchQuery } from '../hooks/useTaskSearchQuery'
+import { filterAndSortTasks } from '../lib/task-search'
 import { getPublicTaskPath } from '../lib/task-slug'
 import { listPublicBrowsableTasks } from '../lib/tasks'
 import type { Task } from '../types'
@@ -22,12 +22,10 @@ import type { Task } from '../types'
 export function BrowsePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const searchQuery = useTaskSearchQuery()
   const { user } = useAuth()
   const proximityOptions = useProximityOptions()
   const mockCategories = getMockCategories()
-  const [searchParams] = useSearchParams()
-  const searchQuery = searchParams.get('q') ?? ''
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -54,14 +52,19 @@ export function BrowsePage() {
     }
   }, [user?.id])
 
-  const filteredTasks = useMemo(() => {
-    const byCategory =
-      activeCategory === 'all' ? tasks : tasks.filter((task) => task.category === activeCategory)
-    const searched = filterTasksBySearchQuery(byCategory, searchQuery)
-    const sorted = sortTasksByProximity(searched, proximityOptions)
-    logTaskSearchResults(pathname, searchQuery, sorted.length, tasks.length)
-    return sorted
-  }, [tasks, activeCategory, searchQuery, proximityOptions, pathname])
+  const filteredTasks = useMemo(
+    () =>
+      filterAndSortTasks({
+        tasks,
+        searchQuery,
+        activeCategory,
+        proximityOptions,
+      }),
+    [tasks, activeCategory, searchQuery, proximityOptions],
+  )
+
+  const hasSearchQuery = searchQuery.trim().length > 0
+  const hasNoSearchResults = hasSearchQuery && tasks.length > 0 && filteredTasks.length === 0
 
   const clearSearch = () => {
     navigate('/browse', { replace: true })
@@ -109,21 +112,21 @@ export function BrowsePage() {
           <TaskListSkeleton count={4} />
         ) : error ? (
           <ErrorState message={error} onAction={() => window.location.reload()} />
-        ) : filteredTasks.length === 0 ? (
+        ) : tasks.length === 0 || hasNoSearchResults || (filteredTasks.length === 0 && activeCategory !== 'all') ? (
           <EmptyState
             icon={<Search className="h-6 w-6" />}
-            title={searchQuery.trim() ? t('search.noResults') : t('tasks.noTasksFound')}
+            title={hasNoSearchResults || hasSearchQuery ? t('search.noResults') : t('tasks.noTasksFound')}
             description={
-              searchQuery.trim()
+              hasNoSearchResults || hasSearchQuery
                 ? t('search.noResultsHint')
                 : activeCategory === 'all'
                   ? t('tasks.noTasksFoundHint')
                   : t('tasks.tryAnotherCategory')
             }
-            actionLabel={searchQuery.trim() ? t('search.clearSearch') : t('tasks.viewAllCategories')}
-            onAction={() => (searchQuery.trim() ? clearSearch() : setActiveCategory('all'))}
-            secondaryActionLabel={searchQuery.trim() ? t('tasks.viewAllCategories') : t('tasks.postTask')}
-            onSecondaryAction={() => (searchQuery.trim() ? setActiveCategory('all') : navigate('/post'))}
+            actionLabel={hasNoSearchResults || hasSearchQuery ? t('search.clearSearch') : t('tasks.viewAllCategories')}
+            onAction={() => (hasNoSearchResults || hasSearchQuery ? clearSearch() : setActiveCategory('all'))}
+            secondaryActionLabel={hasNoSearchResults || hasSearchQuery ? t('tasks.viewAllCategories') : t('tasks.postTask')}
+            onSecondaryAction={() => (hasNoSearchResults || hasSearchQuery ? setActiveCategory('all') : navigate('/post'))}
           />
         ) : (
           <section aria-label={t('browse.label')} className="flex flex-col gap-5">

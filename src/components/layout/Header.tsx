@@ -1,6 +1,6 @@
 import { Bell, ChevronDown, MapPin, Search, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../context/NotificationsContext'
 import { useTranslation } from '../../context/LocaleContext'
@@ -15,22 +15,21 @@ function isTaskSearchRoute(pathname: string): boolean {
   return pathname === '/browse' || pathname === '/'
 }
 
-function buildBrowseSearchPath(query: string): string {
-  const trimmed = query.trim()
-  return trimmed ? `/browse?q=${encodeURIComponent(trimmed)}` : '/browse'
+function readUrlSearchQuery(search: string): string {
+  return new URLSearchParams(search).get('q') ?? ''
 }
 
 export function Header({ location = 'Mostar, BiH' }: HeaderProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
-  const [searchParams] = useSearchParams()
+  const { pathname, search } = useLocation()
   const { user, isAuthenticated } = useAuth()
   const { unreadCount } = useNotifications()
   const displayLocation = isAuthenticated ? user?.location ?? location : location
   const onSearchRoute = isTaskSearchRoute(pathname)
-  const urlQuery = onSearchRoute ? (searchParams.get('q') ?? '') : ''
+  const urlQuery = onSearchRoute ? readUrlSearchQuery(search) : ''
   const [searchValue, setSearchValue] = useState(urlQuery)
+  const skipDebounceRef = useRef(false)
 
   useEffect(() => {
     if (onSearchRoute) {
@@ -42,22 +41,45 @@ export function Header({ location = 'Mostar, BiH' }: HeaderProps) {
 
   const commitSearch = useCallback(
     (value: string) => {
-      navigate(buildBrowseSearchPath(value), { replace: true })
+      const trimmed = value.trim()
+      console.log('[GENZA SEARCH] input commit', { value: trimmed, from: pathname })
+
+      navigate(
+        {
+          pathname: '/browse',
+          search: trimmed ? `?q=${encodeURIComponent(trimmed)}` : '',
+        },
+        { replace: true },
+      )
     },
-    [navigate],
+    [navigate, pathname],
   )
 
   const clearSearch = useCallback(() => {
+    skipDebounceRef.current = true
     setSearchValue('')
-    navigate('/browse', { replace: true })
+    navigate({ pathname: '/browse', search: '' }, { replace: true })
   }, [navigate])
 
+  const handleInputChange = (value: string) => {
+    console.log('[GENZA SEARCH] input change', { value })
+    setSearchValue(value)
+  }
+
   useEffect(() => {
+    if (skipDebounceRef.current) {
+      skipDebounceRef.current = false
+      return
+    }
+
     const timer = window.setTimeout(() => {
-      if (searchValue.trim() !== urlQuery.trim()) {
+      const next = searchValue.trim()
+      const current = urlQuery.trim()
+      if (next !== current) {
         commitSearch(searchValue)
       }
     }, 250)
+
     return () => window.clearTimeout(timer)
   }, [searchValue, urlQuery, commitSearch])
 
@@ -108,7 +130,7 @@ export function Header({ location = 'Mostar, BiH' }: HeaderProps) {
           <input
             type="search"
             value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
+            onChange={(event) => handleInputChange(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()

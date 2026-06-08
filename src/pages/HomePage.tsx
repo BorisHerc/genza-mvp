@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ClipboardList, Search, Sparkles, TrendingUp } from 'lucide-react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { FeaturedTaskersSection } from '../components/home/FeaturedTaskersSection'
 import { LocalActivityFeed } from '../components/home/LocalActivityFeed'
 import { LocationPromptBanner } from '../components/location/LocationPromptBanner'
@@ -18,8 +18,8 @@ import { TaskListSkeleton } from '../components/ui/Skeletons'
 import { useAuth } from '../context/AuthContext'
 import { useTranslation } from '../context/LocaleContext'
 import { useProximityOptions } from '../hooks/useProximityOptions'
-import { sortTasksByProximity } from '../lib/distance'
-import { filterTasksBySearchQuery, logTaskSearchResults } from '../lib/task-search'
+import { useTaskSearchQuery } from '../hooks/useTaskSearchQuery'
+import { filterAndSortTasks } from '../lib/task-search'
 import { listFeaturedTaskers } from '../lib/marketplace-home'
 import { isWelcomeDismissed } from '../lib/profile-trust'
 import { listReviewsReceivedByUser } from '../lib/reviews'
@@ -32,7 +32,7 @@ import type { PublicProfile } from '../types/profile'
 export function HomePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const searchQuery = useTaskSearchQuery()
   const { user, needsProfileCompletionReminder } = useAuth()
   const proximityOptions = useProximityOptions()
   const [tasks, setTasks] = useState<Task[]>([])
@@ -46,8 +46,6 @@ export function HomePage() {
   const [error, setError] = useState('')
   const [activeCategory, setActiveCategory] = useState<TaskCategory | 'all'>('all')
   const [showWelcome, setShowWelcome] = useState(false)
-  const [searchParams] = useSearchParams()
-  const searchQuery = searchParams.get('q') ?? ''
 
   useEffect(() => {
     if (user?.id) {
@@ -115,14 +113,19 @@ export function HomePage() {
     }
   }, [user?.id])
 
-  const filteredTasks = useMemo(() => {
-    const byCategory =
-      activeCategory === 'all' ? tasks : tasks.filter((task) => task.category === activeCategory)
-    const searched = filterTasksBySearchQuery(byCategory, searchQuery)
-    const sorted = sortTasksByProximity(searched, proximityOptions)
-    logTaskSearchResults(pathname, searchQuery, sorted.length, tasks.length)
-    return sorted
-  }, [tasks, activeCategory, searchQuery, proximityOptions, pathname])
+  const filteredTasks = useMemo(
+    () =>
+      filterAndSortTasks({
+        tasks,
+        searchQuery,
+        activeCategory,
+        proximityOptions,
+      }),
+    [tasks, activeCategory, searchQuery, proximityOptions],
+  )
+
+  const hasSearchQuery = searchQuery.trim().length > 0
+  const hasNoSearchResults = hasSearchQuery && tasks.length > 0 && filteredTasks.length === 0
 
   const clearSearch = () => {
     navigate('/browse', { replace: true })
@@ -208,7 +211,7 @@ export function HomePage() {
 
       <LocationPromptBanner />
 
-      {!isLoading && tasks.length > 0 && <LocalActivityFeed tasks={tasks} />}
+      {!isLoading && !hasSearchQuery && tasks.length > 0 && <LocalActivityFeed tasks={tasks} />}
 
       <section>
         <div className="mb-4 flex items-center justify-between">
@@ -225,28 +228,28 @@ export function HomePage() {
           <TaskListSkeleton count={3} />
         ) : error ? (
           <ErrorState message={error} onAction={() => void loadTasks()} />
-        ) : filteredTasks.length === 0 ? (
+        ) : tasks.length === 0 || hasNoSearchResults || (filteredTasks.length === 0 && activeCategory !== 'all') ? (
           <EmptyState
-            icon={searchQuery.trim() ? <Search className="h-6 w-6" /> : <ClipboardList className="h-6 w-6" />}
-            title={searchQuery.trim() ? t('search.noResults') : t('tasks.noOpenTasks')}
+            icon={hasNoSearchResults || hasSearchQuery ? <Search className="h-6 w-6" /> : <ClipboardList className="h-6 w-6" />}
+            title={hasNoSearchResults || hasSearchQuery ? t('search.noResults') : t('tasks.noOpenTasks')}
             description={
-              searchQuery.trim()
+              hasNoSearchResults || hasSearchQuery
                 ? t('search.noResultsHint')
                 : activeCategory === 'all'
                   ? t('tasks.noOpenTasksHint')
                   : t('tasks.tryAnotherCategory')
             }
-            actionLabel={searchQuery.trim() ? t('search.clearSearch') : t('tasks.postTask')}
-            onAction={() => (searchQuery.trim() ? clearSearch() : navigate('/post'))}
+            actionLabel={hasNoSearchResults || hasSearchQuery ? t('search.clearSearch') : t('tasks.postTask')}
+            onAction={() => (hasNoSearchResults || hasSearchQuery ? clearSearch() : navigate('/post'))}
             secondaryActionLabel={
-              searchQuery.trim()
+              hasNoSearchResults || hasSearchQuery
                 ? t('tasks.browseAllTasks')
                 : activeCategory !== 'all'
                   ? t('tasks.clearFilter')
                   : t('tasks.browseAllTasks')
             }
             onSecondaryAction={() => {
-              if (searchQuery.trim()) {
+              if (hasNoSearchResults || hasSearchQuery) {
                 clearSearch()
                 return
               }
