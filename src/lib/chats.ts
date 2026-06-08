@@ -3,6 +3,7 @@ import type { ChatRow, MessageRow } from '../types/database'
 import { getSupabaseErrorMessage, getSupabaseStepError } from './errors'
 import { translate } from './i18n'
 import { parseNumericChatId, parseNumericTaskId, sameUserId } from './ids'
+import { invokeNotificationEmail } from './email/invoke-notification-email'
 import { notifyNewMessage } from './notifications'
 import { fetchProfiles } from './profiles'
 import { supabase } from './supabase'
@@ -396,8 +397,10 @@ export async function sendMessage(chatIdRaw: string, senderId: string, message: 
   const { profiles } = await fetchProfiles([authUserId])
   const senderName = profiles[0]?.full_name?.trim() || translate('api.senderYou')
 
+  const recipientUserId = chat.otherUserId
+
   const notification = await notifyNewMessage({
-    receiverId: chat.otherUserId,
+    receiverId: recipientUserId,
     senderId: authUserId,
     chatId,
     taskId: row.task_id ?? chat.taskId,
@@ -407,8 +410,24 @@ export async function sendMessage(chatIdRaw: string, senderId: string, message: 
   if (!notification.success && !notification.skipped) {
     console.error('[Genza] sendMessage notification failed', {
       chatId,
-      recipientId: chat.otherUserId,
+      recipientId: recipientUserId,
       error: notification.error,
+    })
+  }
+
+  if (!sameUserId(recipientUserId, authUserId)) {
+    const taskIdForEmail = row.task_id ?? chat.taskId
+    invokeNotificationEmail({
+      userId: recipientUserId,
+      notificationType: 'new_message',
+      chatId,
+      taskId: taskIdForEmail,
+      title: 'Nova poruka',
+      body: 'Imate novu poruku na Genzi.',
+      actionUrl:
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/messages/${chatId}`
+          : undefined,
     })
   }
 
