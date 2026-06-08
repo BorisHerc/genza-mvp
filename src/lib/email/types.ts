@@ -2,22 +2,17 @@ export type EmailNotificationKind =
   | 'new_offer'
   | 'offer_accepted'
   | 'new_message'
-  | 'nearby_task'
+  | 'task_completed'
+  | 'review_received'
 
-export interface EmailMessage {
-  to: string
-  subject: string
-  html: string
-  text: string
-  kind: EmailNotificationKind
-}
+export const EMAIL_NOTIFICATION_TYPES = new Set<EmailNotificationKind>([
+  'new_offer',
+  'offer_accepted',
+  'new_message',
+  'task_completed',
+  'review_received',
+])
 
-export interface EmailSendResult {
-  sent: boolean
-  error?: string
-}
-
-export interface EmailProvider {
-  readonly name: string
-  send(message: EmailMessage): Promise<EmailSendResult>
+export function isEmailNotificationType(type: string): type is EmailNotificationKind {
+  return EMAIL_NOTIFICATION_TYPES.has(type as EmailNotificationKind)
 }

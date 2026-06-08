@@ -4,8 +4,7 @@ import type { NotificationRow } from '../types/database'
 import { getSupabaseErrorMessage, getSupabaseRawErrorMessage } from './errors'
 import { translate } from './i18n'
 import { isUuid, parseNumericChatId, parseNumericTaskId, sameUserId } from './ids'
-import type { EmailNotificationKind } from './email/types'
-import { trySendEmailNotification } from './email'
+import { invokeSendNotificationEmail, isEmailNotificationType } from './email'
 import { normalizeNotificationType } from './notification-display'
 import { preparePushDelivery } from './push/delivery'
 import { supabase } from './supabase'
@@ -259,34 +258,34 @@ export async function createNotification(input: {
     link,
   })
 
-  const emailKind = notificationTypeToEmailKind(input.type)
-  if (emailKind) {
-    const actionUrl = buildNotificationActionUrl(input)
-    void trySendEmailNotification({
+  if (isEmailNotificationType(input.type)) {
+    void invokeSendNotificationEmail({
       userId: recipientId,
-      kind: emailKind,
+      notificationType: input.type,
       title: input.title,
       body: input.body,
-      actionUrl,
+      taskId: input.taskId,
+      offerId: input.offerId,
+      chatId: input.chatId,
+      actionUrl: buildNotificationActionUrl({
+        taskId: input.taskId,
+        chatId: input.chatId,
+        link,
+      }),
     })
   }
 
   return { success: true, error: undefined, row: null, skipped: false as const }
 }
 
-function notificationTypeToEmailKind(type: NotificationType): EmailNotificationKind | null {
-  if (type === 'new_offer' || type === 'offer_accepted' || type === 'new_message' || type === 'nearby_task') {
-    return type
-  }
-  return null
-}
-
 function buildNotificationActionUrl(input: {
   taskId?: string
   chatId?: string
+  link?: string
 }): string | undefined {
   if (typeof window === 'undefined') return undefined
   const origin = window.location.origin
+  if (input.link?.startsWith('/')) return `${origin}${input.link}`
   if (input.chatId) return `${origin}/messages/${input.chatId}`
   if (input.taskId) return `${origin}/tasks/${input.taskId}`
   return `${origin}/notifications`
